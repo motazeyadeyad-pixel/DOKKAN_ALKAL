@@ -14,52 +14,54 @@ const firebaseConfig = {
 // فحص للتأكد من تحميل مكتبة Firebase بنجاح
 if (typeof firebase !== "undefined") {
     firebase.initializeApp(firebaseConfig);
-    if (firebase.analytics) {
-        firebase.analytics();
-    }
 }
+
+// الوصول لقاعدة البيانات
+const db = firebase.database();
 
 // ==========================================
 // 2. كود موقع دكان الخال
 // ==========================================
 
-// المنتجات المبدئية في حال كان المتجر فارغاً لأول مرة
-const defaultProducts = [
-    {
-        id: 1,
-        name: "زيت دوار الشمس",
-        price: 1,
-        category: "مواد غذائية",
-        image: "images/oil.webp",
-        available: true
-    }
-];
-
-// جلب المنتجات من التخزين المحلي أو استخدام القائمة المبدئية
-function getStoredProducts() {
-    let stored = localStorage.getItem("shopProducts");
-    if (!stored) {
-        localStorage.setItem("shopProducts", JSON.stringify(defaultProducts));
-        return defaultProducts;
-    }
-    return JSON.parse(stored);
-}
-
-// السلة
+let allProductsList = [];
 let cart = [];
-
-// القسم المحدد حالياً
 let currentCategory = 'الكل';
-
-// متغير لتخزين رابط الـ GPS
 let userLocationUrl = "";
 
-// معلومات التلغرام والواتساب
 const TELEGRAM_BOT_TOKEN = "8832237966:AAFM0maLZu_CPxOKk77kGblwx2FJKwJ5X7U";
 const TELEGRAM_CHAT_ID = "1953861313";
 const MY_PHONE_NUMBER = "962775279117";
 
-// دالة التصفية حسب القسم
+// جلب المنتجات مباشرة من Firebase لحظة بلحظة
+function fetchProductsFromFirebase() {
+    let container = document.getElementById("products-container");
+    if (container) {
+        container.innerHTML = "<p style='text-align:center; width:100%; grid-column: 1/-1;'>جاري تحميل المنتجات...</p>";
+    }
+
+    db.ref("products").on("value", (snapshot) => {
+        const data = snapshot.val();
+        allProductsList = [];
+
+        if (data) {
+            Object.keys(data).forEach((key) => {
+                allProductsList.push({
+                    id: key,
+                    ...data[key]
+                });
+            });
+        }
+        
+        displayProducts();
+    }, (error) => {
+        console.error("خطأ في جلب البيانات:", error);
+        if (container) {
+            container.innerHTML = "<p style='text-align:center; width:100%; color:red; grid-column: 1/-1;'>حدث خطأ أثناء تحميل المنتجات.</p>";
+        }
+    });
+}
+
+// تصفية حسب القسم
 function filterByCategory(category, btnElement) {
     currentCategory = category;
 
@@ -72,7 +74,7 @@ function filterByCategory(category, btnElement) {
     displayProducts();
 }
 
-// دالة التحكم في الكمية بالبطاقة قبل الإضافة للسلة (+ و -)
+// التحكم بالكمية قبل الإضافة
 function changeProductQty(productId, amount) {
     const qtyInput = document.getElementById(`qty-${productId}`);
     if (!qtyInput) return;
@@ -84,15 +86,14 @@ function changeProductQty(productId, amount) {
     qtyInput.value = currentQty;
 }
 
-// عرض المنتجات في المتجر
+// عرض المنتجات
 function displayProducts() {
     let container = document.getElementById("products-container");
     if (!container) return;
     
     container.innerHTML = "";
-    let products = getStoredProducts();
 
-    let filteredProducts = products.filter(p => p.available !== false);
+    let filteredProducts = allProductsList.filter(p => p.available !== false);
 
     if (currentCategory !== 'الكل') {
         filteredProducts = filteredProducts.filter(p => p.category === currentCategory);
@@ -101,11 +102,11 @@ function displayProducts() {
     const searchInput = document.getElementById("search-input");
     if (searchInput && searchInput.value.trim() !== "") {
         const query = searchInput.value.trim().toLowerCase();
-        filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(query));
+        filteredProducts = filteredProducts.filter(p => p.name && p.name.toLowerCase().includes(query));
     }
 
     if (filteredProducts.length === 0) {
-        container.innerHTML = "<p style='text-align:center; width:100%; font-size:18px; color: #666; grid-column: 1/-1;'>لا توجد منتجات معروضة في هذا القسم حالياً.</p>";
+        container.innerHTML = "<p style='text-align:center; width:100%; font-size:18px; color: #666; grid-column: 1/-1;'>لا توجد منتجات معروضة حالياً.</p>";
         return;
     }
 
@@ -134,12 +135,12 @@ function displayProducts() {
             <div class="available">✓ متوفر</div>
             
             <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0;">
-                <button type="button" onclick="changeProductQty(${product.id}, -1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">-</button>
+                <button type="button" onclick="changeProductQty('${product.id}', -1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">-</button>
                 <input type="number" id="qty-${product.id}" value="1" min="1" readonly style="width: 45px; text-align: center; border: 1px solid #ccc; border-radius: 5px; padding: 4px; font-weight: bold;">
-                <button type="button" onclick="changeProductQty(${product.id}, 1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">+</button>
+                <button type="button" onclick="changeProductQty('${product.id}', 1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">+</button>
             </div>
 
-            <button class="add-button" onclick="addToCart(${product.id})">
+            <button class="add-button" onclick="addToCart('${product.id}')">
                 🛒 أضف إلى السلة
             </button>
         `;
@@ -148,16 +149,14 @@ function displayProducts() {
     });
 }
 
-// إضافة المنتج للسلة
+// إضافة للسلة
 function addToCart(productId) {
-    let products = getStoredProducts();
-    let product = products.find(item => item.id === productId);
-
+    let product = allProductsList.find(item => item.id == productId);
     const qtyInput = document.getElementById(`qty-${productId}`);
     let selectedQuantity = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
 
     if (product) {
-        let existingItem = cart.find(item => item.id === productId);
+        let existingItem = cart.find(item => item.id == productId);
         if (existingItem) {
             existingItem.quantity += selectedQuantity;
         } else {
@@ -170,7 +169,6 @@ function addToCart(productId) {
         }
 
         if (qtyInput) qtyInput.value = 1;
-
         updateCart();
         alert(`تمت إضافة (${selectedQuantity}) حبات من ${product.name} إلى السلة 🛒`);
     }
@@ -256,7 +254,6 @@ function scrollToProducts() {
 function toggleAddressInput() {
     const deliveryType = document.getElementById("delivery-type").value;
     const addressGroup = document.getElementById("address-group");
-
     if (addressGroup) {
         addressGroup.style.display = deliveryType.includes("توصيل للمنزل") ? "flex" : "none";
     }
@@ -279,7 +276,6 @@ function getLocation() {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
             userLocationUrl = `https://maps.google.com/?q=${lat},${lng}`;
-            
             if (status) {
                 status.textContent = "✅ تم تحديد موقعك بنجاح!";
                 status.style.color = "#006b3c";
@@ -287,7 +283,7 @@ function getLocation() {
         },
         (error) => {
             if (status) {
-                status.textContent = "❌ تعذر تحديد الموقع. يرجى تفعيل الـ GPS والسماح للمتصفح بالوصول.";
+                status.textContent = "❌ تعذر تحديد الموقع. يرجى تفعيل الـ GPS.";
                 status.style.color = "#e53935";
             }
         }
@@ -307,12 +303,12 @@ function getOrderData() {
     let address = addressInput ? addressInput.value.trim() : "";
 
     if (name === "") {
-        alert("الرجاء إدخال اسمك لنعرف لمن نجهز الطلب.");
+        alert("الرجاء إدخال اسمك.");
         return null;
     }
 
     if (deliveryType.includes("توصيل للمنزل") && address === "" && !userLocationUrl) {
-        alert("الرجاء إدخال عنوانك أو استخدام زر الـ GPS لتحديد موقعك.");
+        alert("الرجاء إدخال عنوانك أو استخدام الـ GPS.");
         return null;
     }
 
@@ -369,11 +365,8 @@ function orderViaTelegram() {
             updateCart();
             closeCart();
         } else {
-            alert("حدث خطأ أثناء الإرسال، يرجى التأكد من الضغط على Start في بوت التلغرام.");
+            alert("حدث خطأ أثناء الإرسال لتلغرام.");
         }
-    })
-    .catch(error => {
-        alert("تأكد من الاتصال بالإنترنت وحاول مرة أخرى.");
     });
 }
 
@@ -398,12 +391,11 @@ function orderViaWhatsApp() {
     userLocationUrl = "";
     updateCart();
     closeCart();
-
     window.open(whatsappUrl, "_blank");
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-    displayProducts();
+    fetchProductsFromFirebase();
     
     const searchInput = document.getElementById("search-input");
     if (searchInput) {
