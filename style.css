@@ -438,62 +438,66 @@ footer {
     line-height: 2;
 }
 
-/* الشاشات الصغيرة / الهواتف (تعديل 3 أصناف جنب بعض) */
+/* الشاشات الصغيرة / الهواتف (عرض 3 أصناف متجاورة بشكل ممتاز) */
 @media (max-width: 700px) {
     header {
         height: auto;
-        padding: 15px;
+        padding: 12px 15px;
         flex-direction: column;
-        gap: 10px;
+        gap: 8px;
     }
 
     nav {
-        gap: 10px;
+        gap: 15px;
         flex-wrap: wrap;
         justify-content: center;
     }
 
     .hero-text h1 {
-        font-size: 35px;
+        font-size: 32px;
     }
 
     .hero {
-        height: 300px;
+        height: 250px;
     }
 
-    /* جعل المنتجات تعرض 3 أصناف بجانب بعضها على الموبايل */
+    /* تعديل الشبكة لتكون 3 أعمدة متساوية وصغيرة */
     .products-container {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6px !important;
+        padding: 0 2px;
     }
 
     .product-card {
-        padding: 6px;
-        border-radius: 10px;
+        padding: 6px !important;
+        border-radius: 8px;
     }
 
     .product-image {
-        height: 90px;
+        height: 75px !important;
+        border-radius: 6px;
     }
 
     .product-card h3 {
-        font-size: 12px;
-        margin-top: 5px;
+        font-size: 11px !important;
+        margin-top: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .price {
-        font-size: 13px;
-        margin: 4px 0;
+        font-size: 11px !important;
+        margin: 3px 0 !important;
     }
 
     .available {
-        font-size: 10px;
-        margin-bottom: 5px;
+        display: none; /* إخفاء كلمة متوفر بالموبايل لتوفير مساحة */
     }
 
     .add-button {
-        padding: 6px;
-        font-size: 11px;
+        padding: 5px 2px !important;
+        font-size: 10px !important;
         border-radius: 6px;
     }
 }
