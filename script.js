@@ -1,3 +1,28 @@
+// ==========================================
+// 1. تهيئة وإعدادات Firebase
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAwjMnpwY_gUWLi5w0KQRs9_tTXPjx7XZc",
+  authDomain: "motaz-3aa5d.firebaseapp.com",
+  projectId: "motaz-3aa5d",
+  storageBucket: "motaz-3aa5d.firebasestorage.app",
+  messagingSenderId: "494735507077",
+  appId: "1:494735507077:web:b3d534c45910484ca433ec",
+  measurementId: "G-9QLGLJG4P0"
+};
+
+// فحص للتأكد من تحميل مكتبة Firebase بنجاح
+if (typeof firebase !== "undefined") {
+    firebase.initializeApp(firebaseConfig);
+    if (firebase.analytics) {
+        firebase.analytics();
+    }
+}
+
+// ==========================================
+// 2. كود موقع دكان الخال
+// ==========================================
+
 // المنتجات المبدئية في حال كان المتجر فارغاً لأول مرة
 const defaultProducts = [
     {
@@ -55,7 +80,7 @@ function changeProductQty(productId, amount) {
     let currentQty = parseInt(qtyInput.value) || 1;
     currentQty += amount;
 
-    if (currentQty < 1) currentQty = 1; // عدم السماح بأقل من حبة واحدة
+    if (currentQty < 1) currentQty = 1;
     qtyInput.value = currentQty;
 }
 
@@ -67,15 +92,12 @@ function displayProducts() {
     container.innerHTML = "";
     let products = getStoredProducts();
 
-    // 1. فلترة المتوفر
     let filteredProducts = products.filter(p => p.available !== false);
 
-    // 2. فلترة القسم
     if (currentCategory !== 'الكل') {
         filteredProducts = filteredProducts.filter(p => p.category === currentCategory);
     }
 
-    // 3. فلترة البحث
     const searchInput = document.getElementById("search-input");
     if (searchInput && searchInput.value.trim() !== "") {
         const query = searchInput.value.trim().toLowerCase();
@@ -106,13 +128,11 @@ function displayProducts() {
         imgContainer.appendChild(imgElement);
         card.appendChild(imgContainer);
 
-        // إضافة تفاصيل المنتج + واجهة تحديد عدد الحبات (+ / -)
         card.innerHTML += `
             <h3>${product.name}</h3>
             <div class="price">${product.price} دينار</div>
             <div class="available">✓ متوفر</div>
             
-            <!-- أزرار زيادة ونقصان الكمية -->
             <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0;">
                 <button type="button" onclick="changeProductQty(${product.id}, -1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">-</button>
                 <input type="number" id="qty-${product.id}" value="1" min="1" readonly style="width: 45px; text-align: center; border: 1px solid #ccc; border-radius: 5px; padding: 4px; font-weight: bold;">
@@ -128,12 +148,11 @@ function displayProducts() {
     });
 }
 
-// إضافة المنتج للسلة مع الكمية المحددة
+// إضافة المنتج للسلة
 function addToCart(productId) {
     let products = getStoredProducts();
     let product = products.find(item => item.id === productId);
 
-    // جلب الكمية المختارة من خانة المنتج
     const qtyInput = document.getElementById(`qty-${productId}`);
     let selectedQuantity = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
 
@@ -150,7 +169,6 @@ function addToCart(productId) {
             });
         }
 
-        // إرجاع الخانة لـ 1 بعد الإضافة
         if (qtyInput) qtyInput.value = 1;
 
         updateCart();
@@ -158,7 +176,7 @@ function addToCart(productId) {
     }
 }
 
-// تحديث الواجهة للسلة وتوفير خيار تعديل الكمية داخل السلة أيضاً
+// تحديث السلة
 function updateCart() {
     let totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
     const cartCountEl = document.getElementById("cart-count");
@@ -203,7 +221,6 @@ function updateCart() {
     if (totalEl) totalEl.textContent = total.toFixed(2);
 }
 
-// زيادة أو نقصان الحبات من داخل السلة مباشرة
 function changeCartItemQty(index, amount) {
     if (cart[index]) {
         cart[index].quantity += amount;
@@ -214,13 +231,11 @@ function changeCartItemQty(index, amount) {
     }
 }
 
-// حذف منتج من السلة
 function removeFromCart(index) {
     cart.splice(index, 1);
     updateCart();
 }
 
-// فتح وإغلاق السلة والتنقل
 function showCart() {
     const cartModal = document.getElementById("cart");
     if (cartModal) cartModal.style.display = "flex";
@@ -279,7 +294,6 @@ function getLocation() {
     );
 }
 
-// دالة تجميع البيانات للطلب
 function getOrderData() {
     if (cart.length === 0) {
         alert("السلة فارغة! الرجاء إضافة منتجات أولاً.");
@@ -321,7 +335,6 @@ function getOrderData() {
     return { name, phone, deliveryType, address: fullAddress, itemsList, total };
 }
 
-// إرسال الطلبات تلغرام/واتساب
 function orderViaTelegram() {
     let data = getOrderData();
     if (!data) return;
