@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم دكان الخال</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f6f8; margin: 0; padding: 20px; direction: rtl; }
+        .admin-card { background: white; max-width: 600px; margin: 0 auto 20px auto; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { color: #006b3c; margin-top: 0; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
+        .btn-add { background: #006b3c; color: white; border: none; padding: 12px; width: 100%; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .btn-add:hover { background: #00522e; }
+        .btn-camera { background: #0284c7; color: white; border: none; padding: 10px; width: 100%; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-bottom: 8px; }
+        .btn-camera:hover { background: #0369a1; }
+        .product-item { display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ddd; }
+        .product-info { font-size: 15px; }
+        .category-badge { background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 5px; }
+        .actions button { padding: 6px 12px; margin-left: 5px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-toggle { background: #f59e0b; color: white; }
+        .btn-delete { background: #ef4444; color: white; }
+        .preview-img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; margin-top: 8px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="admin-card">
+        <h2>إضافة / تعديل منتج</h2>
+        <input type="hidden" id="p-id">
+        <input type="hidden" id="p-image-base64">
+        
+        <div class="form-group">
+            <label>اسم المنتج</label>
+            <input type="text" id="p-name" placeholder="مثال: حلاوة سكاكر">
+        </div>
+
+        <div class="form-group">
+            <label>السعر (بالدينار)</label>
+            <input type="number" step="0.05" id="p-price" placeholder="مثال: 0.25">
+        </div>
+
+        <div class="form-group">
+            <label>القسم</label>
+            <select id="p-category">
+                <option value="مواد غذائية">🥫 مواد غذائية</option>
+                <option value="سكاكر">🍬 سكاكر وحلويات</option>
+                <option value="مشروبات">🥤 مشروبات</option>
+                <option value="منظفات">🧴 منظفات</option>
+                <option value="مستلزمات شخصية">🧼 مستلزمات شخصية</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>صورة المنتج</label>
+            
+            <!-- input مخفي للتصوير بالكاميرا مباشرة -->
+            <input type="file" id="camera-file" accept="image/*" capture="environment" style="display: none;" onchange="previewCameraFile(event)">
+            
+            <!-- زر فتح الكاميرا -->
+            <button type="button" class="btn-camera" onclick="document.getElementById('camera-file').click()">
+                📸 التقط صورة من الكاميرا
+            </button>
+
+            <!-- اختيار صورة من المعرض/الجهاز -->
+            <input type="file" id="p-file" accept="image/*" onchange="previewFile()">
+            <img id="image-preview" class="preview-img" alt="معاينة الصورة">
+        </div>
+
+        <button class="btn-add" onclick="saveProduct()">حفظ المنتج</button>
+    </div>
+
+    <div class="admin-card">
+        <h2>قائمة المنتجات الحالية</h2>
+        <div id="admin-products-list"></div>
+    </div>
+
+    <script>
+        function getStoredProducts() {
+            return JSON.parse(localStorage.getItem("shopProducts")) || [];
+        }
+
+        function saveProductsToStorage(products) {
+            localStorage.setItem("shopProducts", JSON.stringify(products));
+        }
+
+        // قراءة الصورة المرفوعة من الملفات
+        function previewFile() {
+            const fileInput = document.getElementById("p-file");
+            const file = fileInput.files[0];
+            processImageFile(file);
+        }
+
+        // قراءة الصورة المأخوذة من الكاميرا مباشرة
+        function previewCameraFile(event) {
+            const file = event.target.files[0];
+            processImageFile(file);
+        }
+
+        // تحويل الصورة إلى كود نصي ليعمل في المتجر
+        function processImageFile(file) {
+            const preview = document.getElementById("image-preview");
+            const hiddenBase64 = document.getElementById("p-image-base64");
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = "block";
+                    hiddenBase64.value = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function renderAdminProducts() {
+            const list = document.getElementById("admin-products-list");
+            list.innerHTML = "";
+            const products = getStoredProducts();
+
+            if (products.length === 0) {
+                list.innerHTML = "<p style='text-align:center;'>لا توجد منتجات مضافة بعد.</p>";
+                return;
+            }
+
+            products.forEach((p) => {
+                const item = document.createElement("div");
+                item.className = "product-item";
+                
+                const imgSrc = p.image || "https://via.placeholder.com/50?text=بدون+صورة";
+
+                item.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <img src="${imgSrc}" style="width:50px; height:50px; object-fit:cover; border-radius:6px;" onerror="this.src='https://via.placeholder.com/50?text=خطأ'">
+                        <div class="product-info">
+                            <strong>${p.name}</strong> - ${p.price} دينار 
+                            <span class="category-badge">${p.category || 'عام'}</span>
+                            <br>
+                            <small>الحالة: ${p.available !== false ? '✅ متوفر' : '❌ غير متوفر (مخفي)'}</small>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-toggle" onclick="toggleAvailability(${p.id})">
+                            ${p.available !== false ? 'إيقاف' : 'تفعيل'}
+                        </button>
+                        <button class="btn-delete" onclick="deleteProduct(${p.id})">حذف</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function saveProduct() {
+            const id = document.getElementById("p-id").value;
+            const name = document.getElementById("p-name").value.trim();
+            const price = parseFloat(document.getElementById("p-price").value);
+            const category = document.getElementById("p-category").value;
+            const imageBase64 = document.getElementById("p-image-base64").value;
+
+            if (!name || isNaN(price)) {
+                alert("يرجى إدخال اسم المنتج والسعر بشكل صحيح.");
+                return;
+            }
+
+            let products = getStoredProducts();
+
+            if (id) {
+                const index = products.findIndex(p => p.id == id);
+                if (index !== -1) {
+                    products[index].name = name;
+                    products[index].price = price;
+                    products[index].category = category;
+                    if (imageBase64) products[index].image = imageBase64;
+                }
+            } else {
+                const newProduct = {
+                    id: Date.now(),
+                    name: name,
+                    price: price,
+                    category: category,
+                    image: imageBase64,
+                    available: true
+                };
+                products.push(newProduct);
+            }
+
+            saveProductsToStorage(products);
+            resetForm();
+            renderAdminProducts();
+            alert("تم حفظ المنتج بنجاح!");
+        }
+
+        function toggleAvailability(id) {
+            let products = getStoredProducts();
+            const product = products.find(p => p.id === id);
+            if (product) {
+                product.available = product.available === false ? true : false;
+                saveProductsToStorage(products);
+                renderAdminProducts();
+            }
+        }
+
+        function deleteProduct(id) {
+            if (confirm("هل أنت تأكد من حذف هذا المنتج؟")) {
+                let products = getStoredProducts();
+                products = products.filter(p => p.id !== id);
+                saveProductsToStorage(products);
+                renderAdminProducts();
+            }
+        }
+
+        function resetForm() {
+            document.getElementById("p-id").value = "";
+            document.getElementById("p-name").value = "";
+            document.getElementById("p-price").value = "";
+            document.getElementById("p-file").value = "";
+            document.getElementById("camera-file").value = "";
+            document.getElementById("p-image-base64").value = "";
+            
+            const preview = document.getElementById("image-preview");
+            preview.src = "";
+            preview.style.display = "none";
+        }
+
+        document.addEventListener("DOMContentLoaded", renderAdminProducts);
+    </script>
+</body>
+</html>

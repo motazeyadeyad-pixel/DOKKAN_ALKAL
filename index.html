@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دكان الخال</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- القائمة العلوية -->
+    <header>
+        <div class="logo">
+            🛒 دكان الخال
+        </div>
+
+        <nav>
+            <a href="#">الرئيسية</a>
+            <a href="#products">المنتجات</a>
+            <a href="#categories">الأقسام</a>
+            <a href="#">اتصل بنا</a>
+        </nav>
+
+        <button class="cart-button" onclick="showCart()">
+            🛒 السلة
+            <span id="cart-count">0</span>
+        </button>
+    </header>
+
+    <!-- واجهة الموقع -->
+    <section class="hero">
+        <div class="hero-text">
+            <p>أهلاً وسهلاً بكم في</p>
+            <h1>دكان الخال</h1>
+            <h3>منتجات متنوعة - أسعار مناسبة - خدمة سريعة</h3>
+            <button onclick="scrollToProducts()">تصفح المنتجات</button>
+        </div>
+    </section>
+
+    <!-- الأقسام -->
+    <section id="categories" class="categories">
+        <h2>الأقسام</h2>
+        <div class="category-container">
+            <button class="active" onclick="filterByCategory('الكل', this)">🛒 الكل</button>
+            <button onclick="filterByCategory('مواد غذائية', this)">🥫 مواد غذائية</button>
+            <button onclick="filterByCategory('سكاكر', this)">🍬 سكاكر وحلويات</button>
+            <button onclick="filterByCategory('مشروبات', this)">🥤 مشروبات</button>
+            <button onclick="filterByCategory('منظفات', this)">🧴 منظفات</button>
+            <button onclick="filterByCategory('مستلزمات شخصية', this)">🧼 مستلزمات شخصية</button>
+        </div>
+    </section>
+
+    <!-- المنتجات وشريط البحث -->
+    <section id="products" class="products-section">
+        <h2>منتجاتنا</h2>
+
+        <!-- شريط البحث المباشر -->
+        <div class="search-box" style="max-width: 500px; margin: 0 auto 25px auto; display: flex; gap: 8px; padding: 0 10px;">
+            <input 
+                type="text" 
+                id="search-input" 
+                placeholder="🔍 ابحث عن منتج (مثل: اندومي، زيت، شيبس...)" 
+                style="flex: 1; padding: 12px 15px; border: 2px solid #006b3c; border-radius: 10px; font-size: 16px; outline: none; background: #fff;"
+            >
+            <button 
+                onclick="displayProducts()" 
+                style="background: #006b3c; color: white; border: none; padding: 0 20px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;"
+            >
+                بحث
+            </button>
+        </div>
+
+        <div id="products-container" class="products-container">
+            <!-- المنتجات يتم عرضها من JavaScript -->
+        </div>
+    </section>
+
+    <!-- السلة المحدثة -->
+    <div id="cart" class="cart">
+        <div class="cart-box">
+            <button class="close" onclick="closeCart()">×</button>
+            <h2>🛒 سلة المشتريات</h2>
+
+            <div id="cart-items">
+                لا يوجد منتجات في السلة
+            </div>
+
+            <div class="total-price">
+                <span>المجموع الكلي:</span>
+                <span><span id="total">0</span> دينار</span>
+            </div>
+
+            <!-- بيانات الزبون -->
+            <div class="checkout-form">
+                <div class="form-group">
+                    <label for="customer-name">الاسم الكامل <span style="color:red;">*</span></label>
+                    <input type="text" id="customer-name" placeholder="أدخل اسمك الكريم">
+                </div>
+
+                <div class="form-group">
+                    <label for="customer-phone">رقم الهاتف (اختياري)</label>
+                    <input type="tel" id="customer-phone" placeholder="07X XXX XXXX">
+                </div>
+
+                <div class="form-group">
+                    <label for="delivery-type">طريقة الاستلام</label>
+                    <select id="delivery-type" onchange="toggleAddressInput()">
+                        <option value="🛍️ استلام من الدكان">🛍️ استلام من الدكان</option>
+                        <option value="🛵 توصيل للمنزل">🛵 توصيل للمنزل</option>
+                    </select>
+                </div>
+
+                <!-- حقل العنوان الخفي مع زر الـ GPS -->
+                <div class="form-group" id="address-group" style="display: none;">
+                    <label for="customer-address">مكان السكن / العنوان بالتفصيل <span style="color:red;">*</span></label>
+                    <input type="text" id="customer-address" placeholder="مثال: الشارع الرئيسي - بجانب المخبز">
+                    
+                    <!-- زر جلب الموقع عبر الـ GPS -->
+                    <button type="button" class="btn-gps" onclick="getLocation()">
+                        📍 تحديد موقعي الحالي عبر الـ GPS
+                    </button>
+                    <p id="location-status" style="font-size: 12px; margin-top: 4px;"></p>
+                </div>
+            </div>
+
+            <div class="order-buttons">
+                <button class="order-button btn-telegram" onclick="orderViaTelegram()">
+                    🔵 إرسال الطلب مباشر (تنبيه فوري)
+                </button>
+                <button class="order-button btn-whatsapp" onclick="orderViaWhatsApp()">
+                    🟢 إرسال عبر الواتساب
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <h3>دكان الخال</h3>
+        <p>كل ما تحتاجه في مكان واحد</p>
+        <p>© 2026 دكان الخال</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
