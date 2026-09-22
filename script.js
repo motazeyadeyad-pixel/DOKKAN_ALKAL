@@ -1,5 +1,5 @@
 // ==========================================
-// 1. تهيئة وإعدادات Firebase
+// إعدادات Firebase
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyAwjMnpwY_gUWLi5w0KQRs9_tTXPjx7XZc",
@@ -11,27 +11,23 @@ const firebaseConfig = {
     measurementId: "G-9QLGLJG4P0"
 };
 
-// فحص للتأكد من تحميل مكتبة Firebase بنجاح
-if (typeof firebase !== "undefined") {
+if (typeof firebase !== "undefined" && !firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// الوصول لقاعدة البيانات
 const db = firebase.database();
 
 // ==========================================
-// إعدادات Cloudinary (تم ضبطها بناءً على إعداداتك)
+// إعدادات Cloudinary لرفع الصور
 // ==========================================
 const CLOUDINARY_CLOUD_NAME = "gfyyessl"; 
 const CLOUDINARY_UPLOAD_PRESET = "dokan_preset"; 
 
-// دالة لفتح نافذة رفع الصور من Cloudinary وإرجاع الرابط
 function openCloudinaryUploadWidget(callback) {
     if (typeof cloudinary === "undefined") {
-        alert("مكتبة Cloudinary غير محملة في الصفحة!");
+        alert("مكتبة Cloudinary غير محملة!");
         return;
     }
-
     cloudinary.createUploadWidget({
         cloudName: CLOUDINARY_CLOUD_NAME,
         uploadPreset: CLOUDINARY_UPLOAD_PRESET,
@@ -40,17 +36,14 @@ function openCloudinaryUploadWidget(callback) {
         language: 'ar'
     }, (error, result) => {
         if (!error && result && result.event === "success") {
-            console.log("تم رفع الصورة بنجاح: ", result.info.secure_url);
             if (callback) callback(result.info.secure_url);
         }
     }).open();
 }
 
-
 // ==========================================
-// 2. كود موقع دكان الخال
+// متغيرات الموقع
 // ==========================================
-
 let allProductsList = [];
 let cart = [];
 let currentCategory = 'الكل';
@@ -60,22 +53,14 @@ const TELEGRAM_BOT_TOKEN = "8832237966:AAFM0maLZu_CPxOKk77kGblwx2FJKwJ5X7U";
 const TELEGRAM_CHAT_ID = "1953861313";
 const MY_PHONE_NUMBER = "962775279117";
 
-let isDataLoaded = false;
-
-// جلب المنتجات من Firebase مع حل مشكلة التعليق ودائرة التحميل
+// جلب المنتجات بطريقة مباشرة وسريعة
 function fetchProductsFromFirebase() {
     let container = document.getElementById("products-container");
-    if (container && !isDataLoaded) {
-        container.innerHTML = `
-            <div class="loader-container">
-                <div class="spinner"></div>
-                <p style="color: #444; font-weight: bold; font-size: 16px;">جاري تحميل المنتجات، يرجى الانتظار...</p>
-            </div>
-        `;
+    if (container) {
+        container.innerHTML = `<p style="text-align:center; width:100%; grid-column:1/-1; padding:20px; font-weight:bold;">جاري تحميل المنتجات...</p>`;
     }
 
-    db.ref("products").on("value", (snapshot) => {
-        isDataLoaded = true;
+    db.ref("products").once("value").then((snapshot) => {
         const data = snapshot.val();
         allProductsList = [];
 
@@ -87,67 +72,32 @@ function fetchProductsFromFirebase() {
                 });
             });
         }
-        
         displayProducts();
-    }, (error) => {
-        console.error("خطأ في جلب البيانات:", error);
-        if (!isDataLoaded && container) {
-            container.innerHTML = `
-                <div style="text-align:center; width:100%; grid-column: 1/-1; padding: 20px;">
-                    <p style="color:red; font-size: 16px; margin-bottom: 10px;">عذراً، بطء في الاتصال بالاتترنت أو السيرفر.</p>
-                    <button onclick="fetchProductsFromFirebase()" style="background:#006b3c; color:white; border:none; padding: 10px 20px; border-radius: 8px; cursor:pointer; font-weight:bold;">إعادة المحاولة</button>
-                </div>
-            `;
+    }).catch((error) => {
+        console.error("خطأ:", error);
+        if (container) {
+            container.innerHTML = `<p style="text-align:center; color:red; grid-column:1/-1;">تعذر تحميل المنتجات، تحقق من الإنترنت.</p>`;
         }
     });
-
-    setTimeout(() => {
-        if (!isDataLoaded) {
-            db.ref("products").once("value").then((snapshot) => {
-                if(!isDataLoaded) {
-                    const data = snapshot.val();
-                    allProductsList = [];
-                    if (data) {
-                        Object.keys(data).forEach((key) => {
-                            allProductsList.push({ id: key, ...data[key] });
-                        });
-                    }
-                    isDataLoaded = true;
-                    displayProducts();
-                }
-            }).catch(err => {
-                console.error("فشلت المحاولة التلقائية:", err);
-            });
-        }
-    }, 7000);
 }
 
-// تصفية حسب القسم
 function filterByCategory(category, btnElement) {
     currentCategory = category;
-
     const buttons = document.querySelectorAll('.category-container button, .categories button');
     buttons.forEach(btn => btn.classList.remove('active'));
-    if (btnElement) {
-        btnElement.classList.add('active');
-    }
-
+    if (btnElement) btnElement.classList.add('active');
     displayProducts();
 }
 
-// التحكم بالكمية قبل الإضافة
 function changeProductQty(productId, amount) {
     const qtyInput = document.getElementById(`qty-${productId}`);
     if (!qtyInput) return;
-
     let currentQty = parseInt(qtyInput.value) || 1;
     currentQty += amount;
-
     if (currentQty < 1) currentQty = 1;
     qtyInput.value = currentQty;
 }
 
-// عرض المنتجات
 function displayProducts() {
     let container = document.getElementById("products-container");
     if (!container) return;
@@ -167,7 +117,7 @@ function displayProducts() {
     }
 
     if (filteredProducts.length === 0) {
-        container.innerHTML = "<p style='text-align:center; width:100%; font-size:18px; color: #666; grid-column: 1/-1;'>لا توجد منتجات معروضة حالياً.</p>";
+        container.innerHTML = "<p style='text-align:center; width:100%; font-size:18px; color: #666; grid-column: 1/-1;'>لا توجد منتجات حالياً.</p>";
         return;
     }
 
@@ -180,13 +130,8 @@ function displayProducts() {
 
         let imgElement = document.createElement("img");
         imgElement.src = product.image && product.image.trim() !== "" ? product.image : "https://via.placeholder.com/150?text=منتج";
-        imgElement.className = "product-image";
         imgElement.style.cssText = "width: 100%; height: 100%; object-fit: cover; display: block;";
-        imgElement.onerror = function() {
-            this.onerror = null;
-            this.src = "https://via.placeholder.com/150?text=صورة+غير+متوفرة";
-        };
-
+        
         imgContainer.appendChild(imgElement);
         card.appendChild(imgContainer);
 
@@ -210,7 +155,6 @@ function displayProducts() {
     });
 }
 
-// إضافة للسلة
 function addToCart(productId) {
     let product = allProductsList.find(item => item.id == productId);
     const qtyInput = document.getElementById(`qty-${productId}`);
@@ -228,14 +172,12 @@ function addToCart(productId) {
                 quantity: selectedQuantity
             });
         }
-
         if (qtyInput) qtyInput.value = 1;
         updateCart();
-        alert(`تمت إضافة (${selectedQuantity}) حبات من ${product.name} إلى السلة 🛒`);
+        alert(`تمت إضافة ${product.name} إلى السلة 🛒`);
     }
 }
 
-// تحديث السلة والأسعار (شاملة التوصيل)
 function updateCart() {
     let totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
     const cartCountEl = document.getElementById("cart-count");
@@ -247,16 +189,14 @@ function updateCart() {
     if (!cartItems) return;
 
     if (cart.length === 0) {
-        cartItems.innerHTML = "لا يوجد منتجات في السلة";
+        cartItems.innerHTML = "السلة فارغة";
     } else {
         cartItems.innerHTML = "";
-
         cart.forEach(function(product, index) {
             let itemTotal = product.price * product.quantity;
             subtotal += itemTotal;
 
             let item = document.createElement("div");
-            item.className = "cart-item";
             item.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #f9f9f9; padding: 8px; border-radius: 5px;";
             
             item.innerHTML = `
@@ -265,13 +205,12 @@ function updateCart() {
                     <small>${product.price} × ${product.quantity} = ${itemTotal.toFixed(2)} دينار</small>
                 </div>
                 <div style="display:flex; align-items:center; gap:5px;">
-                    <button onclick="changeCartItemQty(${index}, -1)" style="padding: 2px 8px;">-</button>
+                    <button onclick="changeCartItemQty(${index}, -1)">-</button>
                     <span>${product.quantity}</span>
-                    <button onclick="changeCartItemQty(${index}, 1)" style="padding: 2px 8px;">+</button>
-                    <button onclick="removeFromCart(${index})" style="background:none; border:none; color:red; cursor:pointer; margin-right:5px;">❌</button>
+                    <button onclick="changeCartItemQty(${index}, 1)">+</button>
+                    <button onclick="removeFromCart(${index})" style="color:red; border:none; background:none;">❌</button>
                 </div>
             `;
-
             cartItems.appendChild(item);
         });
     }
@@ -295,9 +234,7 @@ function updateCart() {
 function changeCartItemQty(index, amount) {
     if (cart[index]) {
         cart[index].quantity += amount;
-        if (cart[index].quantity <= 0) {
-            cart.splice(index, 1);
-        }
+        if (cart[index].quantity <= 0) cart.splice(index, 1);
         updateCart();
     }
 }
@@ -319,10 +256,8 @@ function closeCart() {
 }
 
 function scrollToProducts() {
-    const productsSection = document.getElementById("products");
-    if (productsSection) {
-        productsSection.scrollIntoView({ behavior: "smooth" });
-    }
+    const p = document.getElementById("products");
+    if (p) p.scrollIntoView({ behavior: "smooth" });
 }
 
 function toggleAddressInput() {
@@ -337,40 +272,25 @@ function toggleAddressInput() {
 function getLocation() {
     const status = document.getElementById("location-status");
     if (!navigator.geolocation) {
-        if (status) status.textContent = "خاصية الـ GPS غير مدعومة في متصفحك.";
+        if (status) status.textContent = "الـ GPS غير مدعوم.";
         return;
     }
-
-    if (status) {
-        status.textContent = "جاري تحديد موقعك...";
-        status.style.color = "#555";
-    }
-
+    if (status) status.textContent = "جاري تحديد الموقع...";
+    
     navigator.geolocation.getCurrentPosition(
         (position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            userLocationUrl = `https://maps.google.com/?q=${lat},${lng}`;
-            if (status) {
-                status.textContent = "✅ تم تحديد موقعك بنجاح!";
-                status.style.color = "#006b3c";
-            }
+            userLocationUrl = `https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude}`;
+            if (status) status.textContent = "✅ تم تحديد الموقع!";
         },
-        (error) => {
-            if (status) {
-                status.textContent = "❌ تعذر تحديد الموقع. يرجى تفعيل الـ GPS.";
-                status.style.color = "#e53935";
-            }
-        }
+        () => { if (status) status.textContent = "❌ تعذر تحديد الموقع."; }
     );
 }
 
 function getOrderData() {
     if (cart.length === 0) {
-        alert("السلة فارغة! الرجاء إضافة منتجات أولاً.");
+        alert("السلة فارغة!");
         return null;
     }
-
     let name = document.getElementById("customer-name").value.trim();
     let phone = document.getElementById("customer-phone").value.trim();
     let deliveryType = document.getElementById("delivery-type").value;
@@ -381,76 +301,40 @@ function getOrderData() {
         alert("الرجاء إدخال اسمك.");
         return null;
     }
-
-    if (deliveryType.includes("توصيل للمنزل") && address === "" && !userLocationUrl) {
-        alert("الرجاء إدخال عنوانك أو استخدام الـ GPS.");
-        return null;
-    }
-
-    if (phone === "") phone = "لم يدخل رقم هاتف";
+    if (phone === "") phone = "بدون رقم";
 
     let fullAddress = address;
     if (userLocationUrl) {
-        fullAddress += fullAddress ? `\n🗺️ رابط الخريطة: ${userLocationUrl}` : `🗺️ رابط الخريطة: ${userLocationUrl}`;
+        fullAddress += (fullAddress ? `\n🗺️ رابط الخريطة: ${userLocationUrl}` : `🗺️ رابط الخريطة: ${userLocationUrl}`);
     }
 
     let itemsList = "";
     let subtotal = 0;
-
-    cart.forEach(function(item) {
+    cart.forEach(item => {
         let itemTotal = item.price * item.quantity;
         itemsList += `- ${item.name} x${item.quantity} (${itemTotal.toFixed(2)} دينار)\n`;
         subtotal += itemTotal;
     });
 
     let deliveryFee = deliveryType.includes("توصيل للمنزل") ? 0.15 : 0;
-    let total = subtotal + deliveryFee;
-
-    return { name, phone, deliveryType, address: fullAddress, itemsList, subtotal, deliveryFee, total };
+    return { name, phone, deliveryType, address: fullAddress, itemsList, subtotal, deliveryFee, total: subtotal + deliveryFee };
 }
 
 function orderViaTelegram() {
     let data = getOrderData();
     if (!data) return;
 
-    let message = `🛒 *طلب جديد من دكان الخال*\n\n` +
-                  `👤 *الاسم:* ${data.name}\n` +
-                  `📞 *رقم الهاتف:* ${data.phone}\n` +
-                  `🚚 *طريقة الاستلام:* ${data.deliveryType}\n`;
+    let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار`;
 
-    if (data.address) message += `📍 *العنوان:* ${data.address}\n`;
-
-    message += `\n📦 *الطلبات:*\n${data.itemsList}\n` +
-               `💵 *مجموع المنتجات:* ${data.subtotal.toFixed(2)} دينار\n`;
-    
-    if (data.deliveryFee > 0) {
-        message += `🛵 *رسوم التوصيل:* ${data.deliveryFee.toFixed(2)} دينار\n`;
-    }
-
-    message += `💰 *المجموع الكلي النهائي:* ${data.total.toFixed(2)} دينار`;
-
-    let telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-
-    fetch(telegramUrl, {
+    fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            chat_id: TELEGRAM_CHAT_ID,
-            text: message,
-            parse_mode: "Markdown"
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.ok) {
-            alert("سوف يتم تجهيز طلبك خلال دقائق");
-            cart = [];
-            userLocationUrl = "";
-            updateCart();
-            closeCart();
-        } else {
-            alert("حدث خطأ أثناء الإرسال لتلغرام.");
-        }
+        body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: message, parse_mode: "Markdown" })
+    }).then(res => res.json()).then(res => {
+        if (res.ok) {
+            alert("تم إرسال الطلب بنجاح!");
+            cart = []; userLocationUrl = ""; updateCart(); closeCart();
+        } else { alert("خطأ بالإرسال."); }
     });
 }
 
@@ -458,37 +342,16 @@ function orderViaWhatsApp() {
     let data = getOrderData();
     if (!data) return;
 
-    let message = `🛒 *طلب جديد من دكان الخال*\n\n` +
-                  `👤 *الاسم:* ${data.name}\n` +
-                  `📞 *رقم الهاتف:* ${data.phone}\n` +
-                  `🚚 *طريقة الاستلام:* ${data.deliveryType}\n`;
-
-    if (data.address) message += `📍 *العنوان:* ${data.address}\n`;
-
-    message += `\n📦 *الطلبات:*\n${data.itemsList}\n` +
-               `💵 *مجموع المنتجات:* ${data.subtotal.toFixed(2)} دينار\n`;
-    
-    if (data.deliveryFee > 0) {
-        message += `🛵 *رسوم التوصيل:* ${data.deliveryFee.toFixed(2)} دينار\n`;
-    }
-
-    message += `💰 *المجموع الكلي النهائي:* ${data.total.toFixed(2)} دينار`;
-
+    let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار`;
     let whatsappUrl = `https://wa.me/${MY_PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
     
-    alert("سوف يتم تجهيز طلبك خلال دقائق");
-    cart = [];
-    userLocationUrl = "";
-    updateCart();
-    closeCart();
+    alert("تم إرسال الطلب!");
+    cart = []; userLocationUrl = ""; updateCart(); closeCart();
     window.open(whatsappUrl, "_blank");
 }
 
 document.addEventListener("DOMContentLoaded", function() {
     fetchProductsFromFirebase();
-    
     const searchInput = document.getElementById("search-input");
-    if (searchInput) {
-        searchInput.addEventListener("input", displayProducts);
-    }
+    if (searchInput) searchInput.addEventListener("input", displayProducts);
 });
