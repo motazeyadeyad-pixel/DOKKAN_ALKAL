@@ -20,6 +20,34 @@ if (typeof firebase !== "undefined") {
 const db = firebase.database();
 
 // ==========================================
+// إعدادات Cloudinary (تم ضبطها بناءً على إعداداتك)
+// ==========================================
+const CLOUDINARY_CLOUD_NAME = "gfyyessl"; 
+const CLOUDINARY_UPLOAD_PRESET = "dokan_preset"; 
+
+// دالة لفتح نافذة رفع الصور من Cloudinary وإرجاع الرابط
+function openCloudinaryUploadWidget(callback) {
+    if (typeof cloudinary === "undefined") {
+        alert("مكتبة Cloudinary غير محملة في الصفحة!");
+        return;
+    }
+
+    cloudinary.createUploadWidget({
+        cloudName: CLOUDINARY_CLOUD_NAME,
+        uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+        sources: ['local', 'url', 'camera'],
+        multiple: false,
+        language: 'ar'
+    }, (error, result) => {
+        if (!error && result && result.event === "success") {
+            console.log("تم رفع الصورة بنجاح: ", result.info.secure_url);
+            if (callback) callback(result.info.secure_url);
+        }
+    }).open();
+}
+
+
+// ==========================================
 // 2. كود موقع دكان الخال
 // ==========================================
 
@@ -32,14 +60,12 @@ const TELEGRAM_BOT_TOKEN = "8832237966:AAFM0maLZu_CPxOKk77kGblwx2FJKwJ5X7U";
 const TELEGRAM_CHAT_ID = "1953861313";
 const MY_PHONE_NUMBER = "962775279117";
 
-// متغير للتحقق مما إذا تم تحميل المنتجات بنجاح لعدم تكرار رسائل الخطأ
 let isDataLoaded = false;
 
 // جلب المنتجات من Firebase مع حل مشكلة التعليق ودائرة التحميل
 function fetchProductsFromFirebase() {
     let container = document.getElementById("products-container");
     if (container && !isDataLoaded) {
-        // عرض دائرة التحميل المتحركة واضحة للزبون
         container.innerHTML = `
             <div class="loader-container">
                 <div class="spinner"></div>
@@ -48,7 +74,6 @@ function fetchProductsFromFirebase() {
         `;
     }
 
-    // مراقبة الاتصال وقاعدة البيانات لحظة بلحظة مع آلية تدارك التعليق
     db.ref("products").on("value", (snapshot) => {
         isDataLoaded = true;
         const data = snapshot.val();
@@ -76,11 +101,8 @@ function fetchProductsFromFirebase() {
         }
     });
 
-    // ميزة إضافية: فحص ذكي (Timeout) إذا علق الاتصال ولم يرجع أي رد خلال 7 ثوانٍ
     setTimeout(() => {
         if (!isDataLoaded) {
-            console.warn("تأخر الاتصال، محاولة إعادة تنشيط الاتصال بـ Firebase...");
-            // محاولة جلب البيانات مرة أخرى لفك التعليق
             db.ref("products").once("value").then((snapshot) => {
                 if(!isDataLoaded) {
                     const data = snapshot.val();
@@ -254,12 +276,10 @@ function updateCart() {
         });
     }
 
-    // حساب رسوم التوصيل بناءً على اختيار الزبون
     const deliveryType = document.getElementById("delivery-type") ? document.getElementById("delivery-type").value : "";
     let deliveryFee = (deliveryType.includes("توصيل للمنزل") && cart.length > 0) ? 0.15 : 0;
     let finalTotal = subtotal + deliveryFee;
 
-    // تحديث العرض في العناصر المرئية إذا وجدت في HTML
     const subtotalEl = document.getElementById("subtotal");
     if (subtotalEl) subtotalEl.textContent = subtotal.toFixed(2);
 
