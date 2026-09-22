@@ -2,13 +2,13 @@
 // 1. تهيئة وإعدادات Firebase
 // ==========================================
 const firebaseConfig = {
-  apiKey: "AIzaSyAwjMnpwY_gUWLi5w0KQRs9_tTXPjx7XZc",
-  authDomain: "motaz-3aa5d.firebaseapp.com",
-  projectId: "motaz-3aa5d",
-  storageBucket: "motaz-3aa5d.firebasestorage.app",
-  messagingSenderId: "494735507077",
-  appId: "1:494735507077:web:b3d534c45910484ca433ec",
-  measurementId: "G-9QLGLJG4P0"
+    apiKey: "AIzaSyAwjMnpwY_gUWLi5w0KQRs9_tTXPjx7XZc",
+    authDomain: "motaz-3aa5d.firebaseapp.com",
+    projectId: "motaz-3aa5d",
+    storageBucket: "motaz-3aa5d.firebasestorage.app",
+    messagingSenderId: "494735507077",
+    appId: "1:494735507077:web:b3d534c45910484ca433ec",
+    measurementId: "G-9QLGLJG4P0"
 };
 
 // فحص للتأكد من تحميل مكتبة Firebase بنجاح
@@ -174,14 +174,14 @@ function addToCart(productId) {
     }
 }
 
-// تحديث السلة
+// تحديث السلة والأسعار (شاملة التوصيل)
 function updateCart() {
     let totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
     const cartCountEl = document.getElementById("cart-count");
     if (cartCountEl) cartCountEl.textContent = totalItemsCount;
 
     let cartItems = document.getElementById("cart-items");
-    let total = 0;
+    let subtotal = 0;
 
     if (!cartItems) return;
 
@@ -192,7 +192,7 @@ function updateCart() {
 
         cart.forEach(function(product, index) {
             let itemTotal = product.price * product.quantity;
-            total += itemTotal;
+            subtotal += itemTotal;
 
             let item = document.createElement("div");
             item.className = "cart-item";
@@ -215,8 +215,22 @@ function updateCart() {
         });
     }
 
+    // حساب رسوم التوصيل بناءً على اختيار الزبون
+    const deliveryType = document.getElementById("delivery-type") ? document.getElementById("delivery-type").value : "";
+    let deliveryFee = (deliveryType.includes("توصيل للمنزل") && cart.length > 0) ? 0.15 : 0;
+    let finalTotal = subtotal + deliveryFee;
+
+    // تحديث العرض في العناصر المرئية إذا وجدت في HTML
+    const subtotalEl = document.getElementById("subtotal");
+    if (subtotalEl) subtotalEl.textContent = subtotal.toFixed(2);
+
+    const deliveryFeeRow = document.getElementById("delivery-fee-row");
+    if (deliveryFeeRow) {
+        deliveryFeeRow.style.display = (deliveryFee > 0) ? "flex" : "none";
+    }
+
     const totalEl = document.getElementById("total");
-    if (totalEl) totalEl.textContent = total.toFixed(2);
+    if (totalEl) totalEl.textContent = finalTotal.toFixed(2);
 }
 
 function changeCartItemQty(index, amount) {
@@ -237,6 +251,7 @@ function removeFromCart(index) {
 function showCart() {
     const cartModal = document.getElementById("cart");
     if (cartModal) cartModal.style.display = "flex";
+    updateCart(); // تحديث المجموع عند فتح السلة
 }
 
 function closeCart() {
@@ -257,6 +272,7 @@ function toggleAddressInput() {
     if (addressGroup) {
         addressGroup.style.display = deliveryType.includes("توصيل للمنزل") ? "flex" : "none";
     }
+    updateCart(); // إعادة حساب وتحديث المجموع فور اختيار أو إلغاء التوصيل
 }
 
 function getLocation() {
@@ -320,15 +336,18 @@ function getOrderData() {
     }
 
     let itemsList = "";
-    let total = 0;
+    let subtotal = 0;
 
     cart.forEach(function(item) {
         let itemTotal = item.price * item.quantity;
         itemsList += `- ${item.name} x${item.quantity} (${itemTotal.toFixed(2)} دينار)\n`;
-        total += itemTotal;
+        subtotal += itemTotal;
     });
 
-    return { name, phone, deliveryType, address: fullAddress, itemsList, total };
+    let deliveryFee = deliveryType.includes("توصيل للمنزل") ? 0.15 : 0;
+    let total = subtotal + deliveryFee;
+
+    return { name, phone, deliveryType, address: fullAddress, itemsList, subtotal, deliveryFee, total };
 }
 
 function orderViaTelegram() {
@@ -343,7 +362,13 @@ function orderViaTelegram() {
     if (data.address) message += `📍 *العنوان:* ${data.address}\n`;
 
     message += `\n📦 *الطلبات:*\n${data.itemsList}\n` +
-               `💰 *المجموع الكلي:* ${data.total.toFixed(2)} دينار`;
+               `💵 *مجموع المنتجات:* ${data.subtotal.toFixed(2)} دينار\n`;
+    
+    if (data.deliveryFee > 0) {
+        message += `🛵 *رسوم التوصيل:* ${data.deliveryFee.toFixed(2)} دينار\n`;
+    }
+
+    message += `💰 *المجموع الكلي النهائي:* ${data.total.toFixed(2)} دينار`;
 
     let telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
@@ -382,7 +407,13 @@ function orderViaWhatsApp() {
     if (data.address) message += `📍 *العنوان:* ${data.address}\n`;
 
     message += `\n📦 *الطلبات:*\n${data.itemsList}\n` +
-               `💰 *المجموع الكلي:* ${data.total.toFixed(2)} دينار`;
+               `💵 *مجموع المنتجات:* ${data.subtotal.toFixed(2)} دينار\n`;
+    
+    if (data.deliveryFee > 0) {
+        message += `🛵 *رسوم التوصيل:* ${data.deliveryFee.toFixed(2)} دينار\n`;
+    }
+
+    message += `💰 *المجموع الكلي النهائي:* ${data.total.toFixed(2)} دينار`;
 
     let whatsappUrl = `https://wa.me/${MY_PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
     

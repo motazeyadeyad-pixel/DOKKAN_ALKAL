@@ -85,7 +85,19 @@
                 لا يوجد منتجات في السلة
             </div>
 
-            <div class="total-price">
+            <!-- تفاصيل الأسعار والتوصيل -->
+            <div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px; font-size: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>مجموع المنتجات:</span>
+                    <span><span id="subtotal">0</span> دينار</span>
+                </div>
+                <div id="delivery-fee-row" style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #d97706; display: none;">
+                    <span>رسوم التوصيل:</span>
+                    <span>0.15 دينار</span>
+                </div>
+            </div>
+
+            <div class="total-price" style="border-top: 1px dashed #ccc; margin-top: 5px; padding-top: 5px;">
                 <span>المجموع الكلي:</span>
                 <span><span id="total">0</span> دينار</span>
             </div>
@@ -106,7 +118,7 @@
                     <label for="delivery-type">طريقة الاستلام</label>
                     <select id="delivery-type" onchange="toggleAddressInput()">
                         <option value="🛍️ استلام من الدكان">🛍️ استلام من الدكان</option>
-                        <option value="🛵 توصيل للمنزل">🛵 توصيل للمنزل</option>
+                        <option value="🛵 توصيل للمنزل">🛵 توصيل للمنزل (0.15 دينار)</option>
                     </select>
                 </div>
 

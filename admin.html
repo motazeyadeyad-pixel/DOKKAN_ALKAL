@@ -15,12 +15,14 @@
         .btn-add:hover { background: #00522e; }
         .btn-camera { background: #0284c7; color: white; border: none; padding: 10px; width: 100%; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-bottom: 8px; }
         .btn-camera:hover { background: #0369a1; }
-        .product-item { display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ddd; }
-        .product-info { font-size: 15px; }
+        .product-item { background: white; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd; }
+        .product-info { font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
         .category-badge { background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 5px; }
-        .actions button { padding: 6px 12px; margin-left: 5px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-toggle { background: #f59e0b; color: white; }
-        .btn-delete { background: #ef4444; color: white; }
+        .actions { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+        .actions button, .actions select, .actions input { padding: 6px 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 13px; font-weight: bold; box-sizing: border-box; }
+        .btn-toggle { background: #f59e0b; color: white; border: none !important; cursor: pointer; }
+        .btn-delete { background: #ef4444; color: white; border: none !important; cursor: pointer; }
+        .btn-save { background: #10b981; color: white; border: none !important; cursor: pointer; }
         .preview-img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; margin-top: 8px; display: none; }
     </style>
 </head>
@@ -149,16 +151,24 @@
                 const imgSrc = p.image || "https://via.placeholder.com/50?text=بدون+صورة";
 
                 item.innerHTML = `
-                    <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="product-info">
                         <img src="${imgSrc}" style="width:50px; height:50px; object-fit:cover; border-radius:6px;" onerror="this.src='https://via.placeholder.com/50?text=خطأ'">
-                        <div class="product-info">
-                            <strong>${p.name}</strong> - ${p.price} دينار 
+                        <div>
+                            <strong>${p.name}</strong><br>
                             <span class="category-badge">${p.category || 'عام'}</span>
-                            <br>
                             <small>الحالة: ${p.available !== false ? '✅ متوفر' : '❌ غير متوفر'}</small>
                         </div>
                     </div>
                     <div class="actions">
+                        <input type="number" step="0.05" id="price-${key}" value="${p.price}" style="width: 80px;" placeholder="السعر">
+                        <select id="cat-${key}" style="width: 130px;">
+                            <option value="مواد غذائية" ${p.category === 'مواد غذائية' ? 'selected' : ''}>🥫 مواد غذائية</option>
+                            <option value="سكاكر" ${p.category === 'سكاكر' ? 'selected' : ''}>🍬 سكاكر</option>
+                            <option value="مشروبات" ${p.category === 'مشروبات' ? 'selected' : ''}>🥤 مشروبات</option>
+                            <option value="منظفات" ${p.category === 'منظفات' ? 'selected' : ''}>🧴 منظفات</option>
+                            <option value="مستلزمات شخصية" ${p.category === 'مستلزمات شخصية' ? 'selected' : ''}>🧼 مستلزمات</option>
+                        </select>
+                        <button class="btn-save" onclick="updateProduct('${key}')">حفظ التعديل</button>
                         <button class="btn-toggle" onclick="toggleStatus('${key}', ${p.available})">
                             ${p.available !== false ? 'إيقاف' : 'تفعيل'}
                         </button>
@@ -168,6 +178,26 @@
                 list.appendChild(item);
             });
         });
+
+        window.updateProduct = function(key) {
+            const newPrice = parseFloat(document.getElementById(`price-${key}`).value);
+            const newCategory = document.getElementById(`cat-${key}`).value;
+
+            if (isNaN(newPrice)) {
+                alert("يرجى إدخال سعر صحيح.");
+                return;
+            }
+
+            const productRef = ref(db, 'products/' + key);
+            update(productRef, {
+                price: newPrice,
+                category: newCategory
+            }).then(() => {
+                alert("تم تحديث المنتج بنجاح!");
+            }).catch((error) => {
+                alert("خطأ في التحديث: " + error.message);
+            });
+        }
 
         window.toggleStatus = function(key, currentStatus) {
             const productRef = ref(db, 'products/' + key);
