@@ -32,14 +32,25 @@ const TELEGRAM_BOT_TOKEN = "8832237966:AAFM0maLZu_CPxOKk77kGblwx2FJKwJ5X7U";
 const TELEGRAM_CHAT_ID = "1953861313";
 const MY_PHONE_NUMBER = "962775279117";
 
-// جلب المنتجات مباشرة من Firebase لحظة بلحظة
+// متغير للتحقق مما إذا تم تحميل المنتجات بنجاح لعدم تكرار رسائل الخطأ
+let isDataLoaded = false;
+
+// جلب المنتجات من Firebase مع حل مشكلة التعليق ودائرة التحميل
 function fetchProductsFromFirebase() {
     let container = document.getElementById("products-container");
-    if (container) {
-        container.innerHTML = "<p style='text-align:center; width:100%; grid-column: 1/-1;'>جاري تحميل المنتجات...</p>";
+    if (container && !isDataLoaded) {
+        // عرض دائرة التحميل المتحركة واضحة للزبون
+        container.innerHTML = `
+            <div class="loader-container">
+                <div class="spinner"></div>
+                <p style="color: #444; font-weight: bold; font-size: 16px;">جاري تحميل المنتجات، يرجى الانتظار...</p>
+            </div>
+        `;
     }
 
+    // مراقبة الاتصال وقاعدة البيانات لحظة بلحظة مع آلية تدارك التعليق
     db.ref("products").on("value", (snapshot) => {
+        isDataLoaded = true;
         const data = snapshot.val();
         allProductsList = [];
 
@@ -55,10 +66,38 @@ function fetchProductsFromFirebase() {
         displayProducts();
     }, (error) => {
         console.error("خطأ في جلب البيانات:", error);
-        if (container) {
-            container.innerHTML = "<p style='text-align:center; width:100%; color:red; grid-column: 1/-1;'>حدث خطأ أثناء تحميل المنتجات.</p>";
+        if (!isDataLoaded && container) {
+            container.innerHTML = `
+                <div style="text-align:center; width:100%; grid-column: 1/-1; padding: 20px;">
+                    <p style="color:red; font-size: 16px; margin-bottom: 10px;">عذراً، بطء في الاتصال بالاتترنت أو السيرفر.</p>
+                    <button onclick="fetchProductsFromFirebase()" style="background:#006b3c; color:white; border:none; padding: 10px 20px; border-radius: 8px; cursor:pointer; font-weight:bold;">إعادة المحاولة</button>
+                </div>
+            `;
         }
     });
+
+    // ميزة إضافية: فحص ذكي (Timeout) إذا علق الاتصال ولم يرجع أي رد خلال 7 ثوانٍ
+    setTimeout(() => {
+        if (!isDataLoaded) {
+            console.warn("تأخر الاتصال، محاولة إعادة تنشيط الاتصال بـ Firebase...");
+            // محاولة جلب البيانات مرة أخرى لفك التعليق
+            db.ref("products").once("value").then((snapshot) => {
+                if(!isDataLoaded) {
+                    const data = snapshot.val();
+                    allProductsList = [];
+                    if (data) {
+                        Object.keys(data).forEach((key) => {
+                            allProductsList.push({ id: key, ...data[key] });
+                        });
+                    }
+                    isDataLoaded = true;
+                    displayProducts();
+                }
+            }).catch(err => {
+                console.error("فشلت المحاولة التلقائية:", err);
+            });
+        }
+    }, 7000);
 }
 
 // تصفية حسب القسم
@@ -251,7 +290,7 @@ function removeFromCart(index) {
 function showCart() {
     const cartModal = document.getElementById("cart");
     if (cartModal) cartModal.style.display = "flex";
-    updateCart(); // تحديث المجموع عند فتح السلة
+    updateCart();
 }
 
 function closeCart() {
@@ -272,7 +311,7 @@ function toggleAddressInput() {
     if (addressGroup) {
         addressGroup.style.display = deliveryType.includes("توصيل للمنزل") ? "flex" : "none";
     }
-    updateCart(); // إعادة حساب وتحديث المجموع فور اختيار أو إلغاء التوصيل
+    updateCart();
 }
 
 function getLocation() {
