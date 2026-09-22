@@ -4,6 +4,7 @@
 const firebaseConfig = {
     apiKey: "AIzaSyAwjMnpwY_gUWLi5w0KQRs9_tTXPjx7XZc",
     authDomain: "motaz-3aa5d.firebaseapp.com",
+    databaseURL: "https://motaz-3aa5d-default-rtdb.firebaseio.com",
     projectId: "motaz-3aa5d",
     storageBucket: "motaz-3aa5d.firebasestorage.app",
     messagingSenderId: "494735507077",
