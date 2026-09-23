@@ -54,7 +54,6 @@ const TELEGRAM_BOT_TOKEN = "8832237966:AAFM0maLZu_CPxOKk77kGblwx2FJKwJ5X7U";
 const TELEGRAM_CHAT_ID = "1953861313";
 const MY_PHONE_NUMBER = "962775279117";
 
-// جلب المنتجات بطريقة مباشرة وسريعة
 function fetchProductsFromFirebase() {
     let container = document.getElementById("products-container");
     if (container) {
