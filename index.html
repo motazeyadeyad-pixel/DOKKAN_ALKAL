@@ -21,10 +21,17 @@
             <a href="#">اتصل بنا</a>
         </nav>
 
-        <button class="cart-button" onclick="showCart()">
-            🛒 السلة
-            <span id="cart-count">0</span>
-        </button>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button class="account-button" id="account-btn" onclick="handleAccountClick()">
+                تسجيل الدخول
+            </button>
+            <span id="account-name-label" style="font-size:14px; font-weight:bold;"></span>
+
+            <button class="cart-button" onclick="showCart()">
+                🛒 السلة
+                <span id="cart-count">0</span>
+            </button>
+        </div>
     </header>
 
     <!-- واجهة الموقع -->
@@ -47,6 +54,7 @@
             <button onclick="filterByCategory('مشروبات', this)">🥤 مشروبات</button>
             <button onclick="filterByCategory('منظفات', this)">🧴 منظفات</button>
             <button onclick="filterByCategory('مستلزمات شخصية', this)">🧼 مستلزمات شخصية</button>
+            <button onclick="filterByCategory('المفضلة', this)">❤️ المفضلة</button>
         </div>
     </section>
 
@@ -146,6 +154,105 @@
         </div>
     </div>
 
+    <!-- مودال تسجيل الدخول / إنشاء حساب -->
+    <div id="auth-modal" class="modal-overlay">
+        <div class="modal-box">
+            <button class="close" onclick="closeAuthModal()">×</button>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn active" id="tab-login-btn" onclick="switchAuthTab('login')">تسجيل الدخول</button>
+                <button type="button" class="auth-tab-btn" id="tab-register-btn" onclick="switchAuthTab('register')">حساب جديد</button>
+            </div>
+
+            <!-- نموذج تسجيل الدخول -->
+            <div id="login-tab" class="auth-tab-content">
+                <h2>تسجيل الدخول</h2>
+
+                <!-- تسجيل دخول سريع عبر Google / Facebook -->
+                <div class="social-login-buttons">
+                    <button type="button" class="social-btn btn-google" onclick="loginWithGoogle()">
+                        <span class="social-icon">G</span> المتابعة عبر Google
+                    </button>
+                    <button type="button" class="social-btn btn-facebook" onclick="loginWithFacebook()">
+                        <span class="social-icon">f</span> المتابعة عبر Facebook
+                    </button>
+                </div>
+
+                <div class="auth-divider"><span>أو عبر الإيميل</span></div>
+
+                <div class="form-group">
+                    <label for="login-email">الإيميل</label>
+                    <input type="email" id="login-email" placeholder="example@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">كلمة المرور</label>
+                    <input type="password" id="login-password" placeholder="••••••">
+                </div>
+                <button type="button" class="order-button btn-telegram" onclick="loginUser()">دخول</button>
+
+                <div class="auth-divider"><span>أو عبر رقم الهاتف</span></div>
+
+                <div class="form-group">
+                    <label for="phone-login-number">رقم الهاتف</label>
+                    <input type="tel" id="phone-login-number" placeholder="07X XXX XXXX">
+                </div>
+                <div id="recaptcha-container" style="margin:10px 0;"></div>
+                <button type="button" class="order-button btn-whatsapp" onclick="sendPhoneOtp()">📩 إرسال رمز التحقق</button>
+
+                <div id="phone-otp-group" class="form-group" style="display:none; margin-top:12px;">
+                    <label for="phone-otp-code">رمز التحقق</label>
+                    <input type="text" id="phone-otp-code" placeholder="123456" inputmode="numeric">
+                    <button type="button" class="order-button btn-telegram" onclick="verifyPhoneOtp()">تأكيد الرمز والدخول</button>
+                </div>
+            </div>
+
+            <!-- نموذج إنشاء حساب -->
+            <div id="register-tab" class="auth-tab-content" style="display:none;">
+                <h2>إنشاء حساب جديد</h2>
+                <div class="form-group">
+                    <label for="register-name">الاسم الكامل</label>
+                    <input type="text" id="register-name" placeholder="اسمك الكريم">
+                </div>
+                <div class="form-group">
+                    <label for="register-phone">رقم الهاتف (اختياري)</label>
+                    <input type="tel" id="register-phone" placeholder="07X XXX XXXX">
+                </div>
+                <div class="form-group">
+                    <label for="register-email">الإيميل</label>
+                    <input type="email" id="register-email" placeholder="example@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="register-password">كلمة المرور</label>
+                    <input type="password" id="register-password" placeholder="6 أحرف على الأقل">
+                </div>
+                <button type="button" class="order-button btn-whatsapp" onclick="registerUser()">إنشاء الحساب</button>
+            </div>
+
+            <div id="account-actions" style="display:none; text-align:center; margin-top:10px;">
+                <button type="button" onclick="openOrderHistory(); closeAuthModal();" class="order-button btn-telegram">📦 سجل طلباتي</button>
+                <button type="button" onclick="logoutUser(); closeAuthModal();" class="order-button" style="background:#999; color:#fff;">🚪 تسجيل الخروج</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تتبع حالة الطلب -->
+    <div id="tracking-modal" class="modal-overlay">
+        <div class="modal-box">
+            <button class="close" onclick="closeTrackingModal()">×</button>
+            <h2>📍 تتبع طلبك</h2>
+            <div id="tracking-steps"></div>
+        </div>
+    </div>
+
+    <!-- مودال سجل الطلبات السابقة -->
+    <div id="orders-history-modal" class="modal-overlay">
+        <div class="modal-box">
+            <button class="close" onclick="closeOrderHistoryModal()">×</button>
+            <h2>📦 طلباتي السابقة</h2>
+            <div id="orders-history-list"></div>
+        </div>
+    </div>
+
     <footer>
         <h3>دكان الخال</h3>
         <p>كل ما تحتاجه في مكان واحد</p>
@@ -155,11 +262,52 @@
     <!-- مكتبات Firebase المطلوبة -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
-    <!-- مكتبة Cloudinary لرفع الصور (تمت الإضافة هنا بنجاح) -->
+    <!-- مكتبة Cloudinary لرفع الصور -->
     <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
 
     <!-- ملف السكربت الخاص بالموقع -->
     <script src="script.js"></script>
+
+    <!-- سكربت بسيط لتبديل تبويبات مودال تسجيل الدخول وزر الحساب -->
+    <script>
+        function switchAuthTab(tab) {
+            const loginTab = document.getElementById("login-tab");
+            const registerTab = document.getElementById("register-tab");
+            const loginBtn = document.getElementById("tab-login-btn");
+            const registerBtn = document.getElementById("tab-register-btn");
+
+            if (tab === "login") {
+                loginTab.style.display = "block";
+                registerTab.style.display = "none";
+                loginBtn.classList.add("active");
+                registerBtn.classList.remove("active");
+            } else {
+                loginTab.style.display = "none";
+                registerTab.style.display = "block";
+                loginBtn.classList.remove("active");
+                registerBtn.classList.add("active");
+            }
+        }
+
+        // لما يضغط الزبون على زر "تسجيل الدخول" بالهيدر: لو ما مسجل دخول يفتح المودال،
+        // لو مسجل دخول يفتح له خيارات الحساب (سجل الطلبات / تسجيل خروج)
+        function handleAccountClick() {
+            if (typeof currentUser !== "undefined" && currentUser) {
+                const modal = document.getElementById("auth-modal");
+                document.querySelector(".auth-tabs").style.display = "none";
+                document.getElementById("login-tab").style.display = "none";
+                document.getElementById("register-tab").style.display = "none";
+                document.getElementById("account-actions").style.display = "block";
+                modal.style.display = "flex";
+            } else {
+                document.querySelector(".auth-tabs").style.display = "flex";
+                document.getElementById("account-actions").style.display = "none";
+                switchAuthTab("login");
+                openAuthModal();
+            }
+        }
+    </script>
 </body>
 </html>

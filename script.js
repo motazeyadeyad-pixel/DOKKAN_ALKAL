@@ -17,6 +17,7 @@ if (typeof firebase !== "undefined" && !firebase.apps.length) {
 }
 
 const db = firebase.database();
+const auth = firebase.auth ? firebase.auth() : null; // تأكد إنك مضيف firebase-auth.js بالـ HTML
 
 // ==========================================
 // إعدادات Cloudinary لرفع الصور
@@ -62,6 +63,17 @@ let renderedCount = 0;
 let loadMoreObserver = null;
 
 // ==========================================
+// حساب المستخدم الحالي + المفضلة
+// ==========================================
+let currentUser = null;          // كائن Firebase Auth الحالي
+let currentUserProfile = null;   // {name, phone, email}
+let userFavorites = {};          // { productId: true }
+let ratingStatsCache = {};       // { productId: {sum, count} }
+
+// حالات تتبع الطلب (بالترتيب)
+const ORDER_STATUSES = ["تم استلام الطلب", "جاري التجهيز", "خرج للتوصيل", "تم التسليم"];
+
+// ==========================================
 // أدوات تسريع التحميل
 // ==========================================
 
@@ -103,7 +115,7 @@ function snapshotToList(snapshot) {
 
 // ==========================================
 // جلب المنتجات
-// المرحلة 1: أول 3 منتجات فقط (سريعة جداً)
+// المرحلة 1: أول دفعة فقط (سريعة جداً)
 // المرحلة 2: باقي المنتجات بالخلفية
 // ==========================================
 function fetchProductsFromFirebase() {
@@ -158,7 +170,7 @@ function fetchProductsFromFirebase() {
         return;
     }
 
-    // أول زيارة: أول 3 منتجات فقط
+    // أول زيارة: أول دفعة فقط
     db.ref("products").limitToFirst(PAGE_SIZE).once("value").then((snapshot) => {
         const list = snapshotToList(snapshot);
         console.log(`أول ${list.length} منتجات: ${Math.round(performance.now() - t0)}ms`);
@@ -194,7 +206,9 @@ function changeProductQty(productId, amount) {
 function getFilteredProducts() {
     let filtered = allProductsList.filter(p => p.available !== false);
 
-    if (currentCategory !== 'الكل') {
+    if (currentCategory === 'المفضلة') {
+        filtered = filtered.filter(p => userFavorites[p.id]);
+    } else if (currentCategory !== 'الكل') {
         filtered = filtered.filter(p => p.category === currentCategory);
     }
 
@@ -209,20 +223,31 @@ function getFilteredProducts() {
 function createProductCard(product) {
     const card = document.createElement("div");
     card.className = "product-card";
+    card.id = `product-card-${product.id}`;
 
     const imgSrc = product.image && product.image.trim() !== ""
         ? optimizeImage(product.image.trim())
         : PLACEHOLDER_IMG;
 
+    const isFav = !!userFavorites[product.id];
+
     card.innerHTML = `
-        <div style="width:100%; height:160px; overflow:hidden; border-radius:8px; margin-bottom:10px; background-color:#f0f0f0;">
+        <div style="position:relative; width:100%; height:160px; overflow:hidden; border-radius:8px; margin-bottom:10px; background-color:#f0f0f0;">
             <img src="${imgSrc}" alt="" loading="lazy" decoding="async"
                  onerror="this.onerror=null; this.src='${PLACEHOLDER_IMG}'"
                  style="width:100%; height:100%; object-fit:cover; display:block;">
+            <button type="button" class="fav-btn" onclick="toggleFavorite('${product.id}', this)"
+                style="position:absolute; top:6px; left:6px; width:32px; height:32px; border:none; border-radius:50%;
+                       background:rgba(255,255,255,0.9); font-size:16px; cursor:pointer;">${isFav ? '❤️' : '🤍'}</button>
         </div>
         <h3>${escapeHTML(product.name)}</h3>
         <div class="price">${product.price} دينار</div>
         <div class="available">✓ متوفر</div>
+
+        <div class="rating-widget" id="rating-${product.id}" style="margin:6px 0; font-size:14px; color:#888;">
+            <span class="rating-stars" data-id="${product.id}">☆☆☆☆☆</span>
+            <span class="rating-avg-text">لا يوجد تقييم بعد</span>
+        </div>
 
         <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0;">
             <button type="button" onclick="changeProductQty('${product.id}', -1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">-</button>
@@ -232,6 +257,10 @@ function createProductCard(product) {
 
         <button class="add-button" onclick="addToCart('${product.id}')">🛒 أضف إلى السلة</button>
     `;
+
+    renderStarPicker(card.querySelector(`.rating-stars[data-id="${product.id}"]`), product.id);
+    loadProductRating(product.id);
+
     return card;
 }
 
@@ -248,8 +277,8 @@ function updateSentinel() {
 
     const sentinel = document.createElement("div");
     sentinel.id = "load-more-sentinel";
-    sentinel.className = "loader-container";                          // <<< جديد
-    sentinel.innerHTML = `<div class="spinner"></div><p>جاري تحميل المزيد...</p>`; // <<< جديد
+    sentinel.className = "loader-container";
+    sentinel.innerHTML = `<div class="spinner"></div><p>جاري تحميل المزيد...</p>`;
     container.appendChild(sentinel);
 
     if ("IntersectionObserver" in window) {
@@ -301,7 +330,7 @@ function displayProducts() {
     renderNextBatch();
 }
 
-// لما توصل كل المنتجات والزبون شايف أول 3: نكمل بدون ما نمسح شي
+// لما توصل كل المنتجات والزبون شايف أول دفعة: نكمل بدون ما نمسح شي
 function continueAfterFullLoad() {
     currentFiltered = getFilteredProducts();
     updateSentinel();
@@ -442,7 +471,321 @@ function getLocation() {
 }
 
 // ==========================================
-// إرسال الطلب
+// تسجيل الدخول / إنشاء حساب (Firebase Auth)
+// ==========================================
+// متطلبات الـ HTML: عناصر بهذي الـ id (اختياري تسميتها كما تحب وتعدّل الكود):
+// auth-modal, login-email, login-password, register-name, register-phone,
+// register-email, register-password, auth-status, account-btn, account-name-label
+
+// يتأكد إن للمستخدم بروفايل محفوظ بقاعدة البيانات (يُستخدم بعد تسجيل الدخول
+// عبر Google / Facebook / الهاتف، لأن هاي الطرق ما بتمرلنا بنموذج تسجيل يدوي)
+function ensureUserProfile(user) {
+    if (!user) return Promise.resolve();
+    const ref = db.ref(`users/${user.uid}/profile`);
+    return ref.once("value").then(snap => {
+        if (!snap.exists()) {
+            return ref.set({
+                name: user.displayName || "مستخدم",
+                phone: user.phoneNumber || "",
+                email: user.email || ""
+            });
+        }
+    });
+}
+
+function registerUser() {
+    if (!auth) { alert("خدمة الحسابات غير مفعّلة."); return; }
+    const name = (document.getElementById("register-name") || {}).value?.trim();
+    const phone = (document.getElementById("register-phone") || {}).value?.trim();
+    const email = (document.getElementById("register-email") || {}).value?.trim();
+    const password = (document.getElementById("register-password") || {}).value;
+
+    if (!name || !email || !password) {
+        alert("الرجاء تعبئة الاسم والإيميل وكلمة المرور.");
+        return;
+    }
+
+    auth.createUserWithEmailAndPassword(email, password)
+        .then((cred) => {
+            const uid = cred.user.uid;
+            return db.ref(`users/${uid}/profile`).set({ name, phone: phone || "", email });
+        })
+        .then(() => {
+            alert("تم إنشاء الحساب بنجاح ✅");
+            closeAuthModal();
+        })
+        .catch((err) => alert("خطأ: " + translateAuthError(err)));
+}
+
+function loginUser() {
+    if (!auth) { alert("خدمة الحسابات غير مفعّلة."); return; }
+    const email = (document.getElementById("login-email") || {}).value?.trim();
+    const password = (document.getElementById("login-password") || {}).value;
+
+    if (!email || !password) {
+        alert("الرجاء إدخال الإيميل وكلمة المرور.");
+        return;
+    }
+
+    auth.signInWithEmailAndPassword(email, password)
+        .then(() => { alert("تم تسجيل الدخول ✅"); closeAuthModal(); })
+        .catch((err) => alert("خطأ: " + translateAuthError(err)));
+}
+
+function logoutUser() {
+    if (!auth) return;
+    auth.signOut();
+}
+
+// ------------------------------------------
+// تسجيل الدخول عبر Google
+// ------------------------------------------
+function loginWithGoogle() {
+    if (!auth) { alert("خدمة الحسابات غير مفعّلة."); return; }
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider)
+        .then((cred) => ensureUserProfile(cred.user))
+        .then(() => { alert("تم تسجيل الدخول بنجاح ✅"); closeAuthModal(); })
+        .catch((err) => alert("خطأ: " + translateAuthError(err)));
+}
+
+// ------------------------------------------
+// تسجيل الدخول عبر Facebook
+// ------------------------------------------
+function loginWithFacebook() {
+    if (!auth) { alert("خدمة الحسابات غير مفعّلة."); return; }
+    const provider = new firebase.auth.FacebookAuthProvider();
+    auth.signInWithPopup(provider)
+        .then((cred) => ensureUserProfile(cred.user))
+        .then(() => { alert("تم تسجيل الدخول بنجاح ✅"); closeAuthModal(); })
+        .catch((err) => alert("خطأ: " + translateAuthError(err)));
+}
+
+// ------------------------------------------
+// تسجيل الدخول عبر رقم الهاتف (OTP برسالة نصية)
+// متطلبات الـ HTML: عنصر id="recaptcha-container"،
+// حقل id="phone-login-number"، حقل id="phone-otp-code" (مخفي بالبداية)،
+// وعنصر id="phone-otp-group" يتحكم بإظهار حقل الرمز
+// ------------------------------------------
+let recaptchaVerifier = null;
+let phoneConfirmationResult = null;
+
+function setupRecaptcha() {
+    if (!auth || recaptchaVerifier) return;
+    recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        size: 'normal'
+    }, auth);
+}
+
+function sendPhoneOtp() {
+    if (!auth) { alert("خدمة الحسابات غير مفعّلة."); return; }
+    const phoneInput = document.getElementById("phone-login-number");
+    let phoneNumber = phoneInput ? phoneInput.value.trim() : "";
+
+    if (!phoneNumber) {
+        alert("الرجاء إدخال رقم الهاتف.");
+        return;
+    }
+
+    // تحويل الرقم الأردني المحلي (07XXXXXXXX) إلى صيغة دولية (+9627XXXXXXXX)
+    if (phoneNumber.startsWith("0")) {
+        phoneNumber = "+962" + phoneNumber.slice(1);
+    } else if (!phoneNumber.startsWith("+")) {
+        phoneNumber = "+962" + phoneNumber;
+    }
+
+    setupRecaptcha();
+
+    auth.signInWithPhoneNumber(phoneNumber, recaptchaVerifier)
+        .then((confirmationResult) => {
+            phoneConfirmationResult = confirmationResult;
+            const otpGroup = document.getElementById("phone-otp-group");
+            if (otpGroup) otpGroup.style.display = "flex";
+            alert("تم إرسال رمز التحقق عبر رسالة نصية 📩");
+        })
+        .catch((err) => {
+            alert("خطأ بإرسال الرمز: " + err.message);
+        });
+}
+
+function verifyPhoneOtp() {
+    const codeInput = document.getElementById("phone-otp-code");
+    const code = codeInput ? codeInput.value.trim() : "";
+
+    if (!code || !phoneConfirmationResult) {
+        alert("الرجاء إرسال الرمز أولاً وإدخاله.");
+        return;
+    }
+
+    phoneConfirmationResult.confirm(code)
+        .then((cred) => ensureUserProfile(cred.user))
+        .then(() => { alert("تم تسجيل الدخول بنجاح ✅"); closeAuthModal(); })
+        .catch((err) => alert("رمز التحقق غير صحيح: " + err.message));
+}
+
+function translateAuthError(err) {
+    const map = {
+        "auth/email-already-in-use": "الإيميل مستخدم من قبل.",
+        "auth/invalid-email": "الإيميل غير صحيح.",
+        "auth/weak-password": "كلمة المرور ضعيفة (6 أحرف على الأقل).",
+        "auth/user-not-found": "الحساب غير موجود.",
+        "auth/wrong-password": "كلمة المرور غير صحيحة."
+    };
+    return map[err.code] || err.message;
+}
+
+function openAuthModal() {
+    const modal = document.getElementById("auth-modal");
+    if (modal) modal.style.display = "flex";
+}
+
+function closeAuthModal() {
+    const modal = document.getElementById("auth-modal");
+    if (modal) modal.style.display = "none";
+}
+
+function requireLogin() {
+    if (!currentUser) {
+        alert("لازم تسجل دخول أول 🙏");
+        openAuthModal();
+        return false;
+    }
+    return true;
+}
+
+function updateAccountUI() {
+    const accountBtn = document.getElementById("account-btn");
+    const nameLabel = document.getElementById("account-name-label");
+    if (accountBtn) {
+        accountBtn.textContent = currentUser ? "حسابي" : "تسجيل الدخول";
+    }
+    if (nameLabel) {
+        nameLabel.textContent = currentUser && currentUserProfile ? currentUserProfile.name : "";
+    }
+}
+
+if (auth) {
+    auth.onAuthStateChanged((user) => {
+        currentUser = user;
+        if (user) {
+            db.ref(`users/${user.uid}/profile`).once("value").then(snap => {
+                currentUserProfile = snap.val() || { name: user.email, phone: "", email: user.email };
+                updateAccountUI();
+            });
+            loadUserFavorites();
+        } else {
+            currentUserProfile = null;
+            userFavorites = {};
+            updateAccountUI();
+            displayProducts();
+        }
+    });
+}
+
+// ==========================================
+// المفضلة ❤️
+// ==========================================
+function loadUserFavorites() {
+    if (!currentUser) return;
+    db.ref(`users/${currentUser.uid}/favorites`).once("value").then(snap => {
+        userFavorites = snap.val() || {};
+        displayProducts();
+    });
+}
+
+function toggleFavorite(productId, btnEl) {
+    if (!requireLogin()) return;
+
+    const isFav = !!userFavorites[productId];
+    const ref = db.ref(`users/${currentUser.uid}/favorites/${productId}`);
+
+    if (isFav) {
+        ref.remove().then(() => {
+            delete userFavorites[productId];
+            if (btnEl) btnEl.textContent = "🤍";
+            if (currentCategory === 'المفضلة') displayProducts();
+        });
+    } else {
+        ref.set(true).then(() => {
+            userFavorites[productId] = true;
+            if (btnEl) btnEl.textContent = "❤️";
+        });
+    }
+}
+
+// ==========================================
+// تقييم المنتجات ⭐
+// ==========================================
+function renderStarPicker(el, productId) {
+    if (!el) return;
+    el.style.cursor = "pointer";
+    el.innerHTML = "☆☆☆☆☆".split("").map((s, i) =>
+        `<span data-star="${i + 1}" style="font-size:16px;">☆</span>`
+    ).join("");
+
+    el.querySelectorAll("span[data-star]").forEach(starSpan => {
+        starSpan.addEventListener("click", () => {
+            const value = parseInt(starSpan.dataset.star);
+            rateProduct(productId, value);
+        });
+    });
+}
+
+function rateProduct(productId, value) {
+    if (!requireLogin()) return;
+
+    const uid = currentUser.uid;
+    const userRatingRef = db.ref(`ratings/${productId}/${uid}`);
+
+    userRatingRef.once("value").then(snap => {
+        const oldValue = snap.val();
+        return userRatingRef.set(value).then(() => {
+            const statsRef = db.ref(`ratingStats/${productId}`);
+            return statsRef.transaction(stats => {
+                if (!stats) stats = { sum: 0, count: 0 };
+                if (oldValue) {
+                    stats.sum += (value - oldValue);
+                } else {
+                    stats.sum += value;
+                    stats.count += 1;
+                }
+                return stats;
+            });
+        });
+    }).then(() => {
+        loadProductRating(productId);
+        alert("شكراً لتقييمك ⭐");
+    });
+}
+
+function loadProductRating(productId) {
+    db.ref(`ratingStats/${productId}`).once("value").then(snap => {
+        const stats = snap.val();
+        ratingStatsCache[productId] = stats;
+        const widget = document.getElementById(`rating-${productId}`);
+        if (!widget) return;
+
+        const avgTextEl = widget.querySelector(".rating-avg-text");
+        const starsEl = widget.querySelector(".rating-stars");
+
+        if (!stats || !stats.count) {
+            if (avgTextEl) avgTextEl.textContent = "لا يوجد تقييم بعد";
+            return;
+        }
+
+        const avg = stats.sum / stats.count;
+        if (avgTextEl) avgTextEl.textContent = `${avg.toFixed(1)} (${stats.count} تقييم)`;
+        if (starsEl) {
+            const rounded = Math.round(avg);
+            starsEl.querySelectorAll("span[data-star]").forEach(s => {
+                s.textContent = parseInt(s.dataset.star) <= rounded ? "★" : "☆";
+            });
+        }
+    });
+}
+
+// ==========================================
+// إرسال الطلب + حفظ الطلب بفايربيس مع حالة التتبع
 // ==========================================
 function getOrderData() {
     if (cart.length === 0) {
@@ -475,24 +818,61 @@ function getOrderData() {
     });
 
     let deliveryFee = deliveryType.includes("توصيل للمنزل") ? 0.15 : 0;
-    return { name, phone, deliveryType, address: fullAddress, itemsList, subtotal, deliveryFee, total: subtotal + deliveryFee };
+    return {
+        name, phone, deliveryType, address: fullAddress, itemsList,
+        items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+        subtotal, deliveryFee, total: subtotal + deliveryFee
+    };
+}
+
+// يحفظ الطلب بقاعدة البيانات مع أول حالة تتبع، ويربطه بحساب الزبون إذا مسجل دخول
+function saveOrderToFirebase(data) {
+    const orderRef = db.ref("orders").push();
+    const orderId = orderRef.key;
+
+    const orderRecord = {
+        uid: currentUser ? currentUser.uid : null,
+        customerName: data.name,
+        phone: data.phone,
+        deliveryType: data.deliveryType,
+        address: data.address,
+        items: data.items,
+        subtotal: data.subtotal,
+        deliveryFee: data.deliveryFee,
+        total: data.total,
+        status: ORDER_STATUSES[0],
+        createdAt: Date.now()
+    };
+
+    return orderRef.set(orderRecord).then(() => {
+        if (currentUser) {
+            db.ref(`users/${currentUser.uid}/orders/${orderId}`).set(true);
+        }
+        return orderId;
+    });
 }
 
 function orderViaTelegram() {
     let data = getOrderData();
     if (!data) return;
 
-    let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار`;
+    saveOrderToFirebase(data).then((orderId) => {
+        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
 
-    fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: message, parse_mode: "Markdown" })
-    }).then(res => res.json()).then(res => {
-        if (res.ok) {
-            alert("تم إرسال الطلب بنجاح!");
-            cart = []; userLocationUrl = ""; updateCart(); closeCart();
-        } else { alert("خطأ بالإرسال."); }
+        return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: message, parse_mode: "Markdown" })
+        }).then(res => res.json()).then(res => {
+            if (res.ok) {
+                alert("تم إرسال الطلب بنجاح! رقم طلبك: " + orderId);
+                cart = []; userLocationUrl = ""; updateCart(); closeCart();
+                trackOrder(orderId);
+            } else { alert("خطأ بالإرسال."); }
+        });
+    }).catch(err => {
+        console.error(err);
+        alert("تعذر حفظ الطلب، حاول مرة أخرى.");
     });
 }
 
@@ -500,12 +880,166 @@ function orderViaWhatsApp() {
     let data = getOrderData();
     if (!data) return;
 
-    let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار`;
-    let whatsappUrl = `https://wa.me/${MY_PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
+    saveOrderToFirebase(data).then((orderId) => {
+        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
+        let whatsappUrl = `https://wa.me/${MY_PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
 
-    alert("تم إرسال الطلب!");
-    cart = []; userLocationUrl = ""; updateCart(); closeCart();
-    window.open(whatsappUrl, "_blank");
+        alert("تم إرسال الطلب! رقم طلبك: " + orderId);
+        cart = []; userLocationUrl = ""; updateCart(); closeCart();
+        window.open(whatsappUrl, "_blank");
+        trackOrder(orderId);
+    }).catch(err => {
+        console.error(err);
+        alert("تعذر حفظ الطلب، حاول مرة أخرى.");
+    });
+}
+
+// ==========================================
+// تتبع حالة الطلب (Live Tracking)
+// ==========================================
+// متطلبات الـ HTML: مودال بـ id="tracking-modal" وبداخله عنصر id="tracking-steps"
+
+let trackingListenerRef = null;
+
+function trackOrder(orderId) {
+    const modal = document.getElementById("tracking-modal");
+    const stepsContainer = document.getElementById("tracking-steps");
+    if (!modal || !stepsContainer) return;
+
+    if (trackingListenerRef) trackingListenerRef.off();
+
+    modal.style.display = "flex";
+    modal.dataset.orderId = orderId;
+
+    trackingListenerRef = db.ref(`orders/${orderId}`);
+    trackingListenerRef.on("value", (snap) => {
+        const order = snap.val();
+        if (!order) {
+            stepsContainer.innerHTML = "<p>لم يتم العثور على الطلب.</p>";
+            return;
+        }
+        renderOrderStatusStepper(order.status, stepsContainer);
+    });
+}
+
+function closeTrackingModal() {
+    const modal = document.getElementById("tracking-modal");
+    if (modal) modal.style.display = "none";
+    if (trackingListenerRef) { trackingListenerRef.off(); trackingListenerRef = null; }
+}
+
+function renderOrderStatusStepper(currentStatus, containerEl) {
+    if (!containerEl) return;
+    const currentIndex = ORDER_STATUSES.indexOf(currentStatus);
+
+    containerEl.innerHTML = ORDER_STATUSES.map((status, i) => {
+        const state = i < currentIndex ? "done" : (i === currentIndex ? "active" : "pending");
+        const icon = state === "done" ? "✅" : (state === "active" ? "🟢" : "⚪");
+        const color = state === "pending" ? "#aaa" : "#222";
+        const weight = state === "active" ? "bold" : "normal";
+        return `
+            <div style="display:flex; align-items:center; gap:10px; padding:8px 0; color:${color}; font-weight:${weight};">
+                <span style="font-size:18px;">${icon}</span>
+                <span>${status}</span>
+            </div>`;
+    }).join("");
+}
+
+// دالة مساعدة (للاستخدام من لوحة تحكم الأدمن) لتغيير حالة الطلب
+function adminUpdateOrderStatus(orderId, newStatus) {
+    if (!ORDER_STATUSES.includes(newStatus)) {
+        alert("حالة غير صحيحة");
+        return;
+    }
+    db.ref(`orders/${orderId}/status`).set(newStatus);
+}
+
+// ==========================================
+// سجل الطلبات السابقة + إعادة الطلب
+// ==========================================
+// متطلبات الـ HTML: مودال id="orders-history-modal" وبداخله عنصر id="orders-history-list"
+
+function openOrderHistory() {
+    if (!requireLogin()) return;
+
+    const modal = document.getElementById("orders-history-modal");
+    const listEl = document.getElementById("orders-history-list");
+    if (!modal || !listEl) return;
+
+    modal.style.display = "flex";
+    listEl.innerHTML = "<p>جاري التحميل...</p>";
+
+    db.ref(`users/${currentUser.uid}/orders`).once("value").then(snap => {
+        const orderIds = snap.val() ? Object.keys(snap.val()) : [];
+        if (orderIds.length === 0) {
+            listEl.innerHTML = "<p>لا يوجد طلبات سابقة.</p>";
+            return;
+        }
+        return Promise.all(orderIds.map(id => db.ref(`orders/${id}`).once("value").then(s => ({ id, ...s.val() }))))
+            .then(orders => {
+                orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                renderOrderHistoryList(orders, listEl);
+            });
+    });
+}
+
+function renderOrderHistoryList(orders, listEl) {
+    listEl.innerHTML = "";
+    orders.forEach(order => {
+        const date = order.createdAt ? new Date(order.createdAt).toLocaleString("ar-EG") : "";
+        const itemsSummary = (order.items || []).map(i => `${i.name} x${i.quantity}`).join("، ");
+
+        const card = document.createElement("div");
+        card.style.cssText = "border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:10px;";
+        card.innerHTML = `
+            <div style="display:flex; justify-content:space-between;">
+                <strong>طلب #${order.id.slice(-6)}</strong>
+                <span>${date}</span>
+            </div>
+            <div style="margin:6px 0; color:#555; font-size:14px;">${escapeHTML(itemsSummary)}</div>
+            <div>الحالة الحالية: <strong>${order.status || ORDER_STATUSES[0]}</strong></div>
+            <div>المجموع: <strong>${(order.total || 0).toFixed(2)} دينار</strong></div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <button onclick="trackOrder('${order.id}')">📍 تتبع الطلب</button>
+                <button onclick="reorderOrder('${order.id}')">🔁 إعادة الطلب</button>
+            </div>
+        `;
+        listEl.appendChild(card);
+    });
+}
+
+function closeOrderHistoryModal() {
+    const modal = document.getElementById("orders-history-modal");
+    if (modal) modal.style.display = "none";
+}
+
+// إعادة طلب قديم بضغطة واحدة: يعبي السلة بنفس المنتجات ويفتحها
+function reorderOrder(orderId) {
+    db.ref(`orders/${orderId}`).once("value").then(snap => {
+        const order = snap.val();
+        if (!order || !order.items) {
+            alert("تعذر إيجاد تفاصيل هذا الطلب.");
+            return;
+        }
+
+        order.items.forEach(item => {
+            // نتأكد المنتج لسا موجود بالقائمة الحالية قبل ما نضيفه
+            const stillExists = allProductsList.find(p => p.id === item.id);
+            if (!stillExists) return;
+
+            const existing = cart.find(c => c.id === item.id);
+            if (existing) {
+                existing.quantity += item.quantity;
+            } else {
+                cart.push({ id: item.id, name: item.name, price: item.price, quantity: item.quantity });
+            }
+        });
+
+        updateCart();
+        closeOrderHistoryModal();
+        showCart();
+        alert("تمت إضافة منتجات الطلب السابق إلى سلتك 🛒");
+    });
 }
 
 // ==========================================
