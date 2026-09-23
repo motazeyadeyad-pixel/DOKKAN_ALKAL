@@ -2,7 +2,7 @@
 // إعدادات Firebase
 // ==========================================
 const firebaseConfig = {
-    apiKey: "AIzaSyAwjMnpwY_gUWLi5w0KQRs9_tTXPjx7XZc",
+    apiKey: "AIzaSyCijhMKaJTyfL8p76-31GbfzCpLF2bui1A",
     authDomain: "motaz-3aa5d.firebaseapp.com",
     databaseURL: "https://motaz-3aa5d-default-rtdb.firebaseio.com",
     projectId: "motaz-3aa5d",
