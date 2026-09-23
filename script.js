@@ -574,7 +574,7 @@ function setupRecaptcha() {
     if (!auth || recaptchaVerifier) return;
     recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
         size: 'normal'
-    }, auth);
+    }, firebase.app());
 }
 
 function sendPhoneOtp() {
