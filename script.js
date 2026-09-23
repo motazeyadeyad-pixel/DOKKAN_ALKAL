@@ -54,12 +54,19 @@ const TELEGRAM_BOT_TOKEN = "8832237966:AAFM0maLZu_CPxOKk77kGblwx2FJKwJ5X7U";
 const TELEGRAM_CHAT_ID = "1953861313";
 const MY_PHONE_NUMBER = "962775279117";
 
+// إعدادات السرعة
+const PAGE_SIZE = 45;                        // عدد المنتجات في كل دفعة (وأول ما يفتح الموقع)
+const CACHE_KEY = "products_cache_v1";      // تخزين المنتجات بالجهاز
+let currentFiltered = [];
+let renderedCount = 0;
+let loadMoreObserver = null;
+
 // ==========================================
 // أدوات تسريع التحميل
 // ==========================================
 
 // تصغير صور Cloudinary تلقائياً
-function optimizeImage(url, size = 300) {
+function optimizeImage(url, size = 250) {
     if (!url || !url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
     if (url.includes("/upload/w_")) return url; // مصغّرة أصلاً
     return url.replace("/upload/", `/upload/w_${size},h_${size},c_fill,q_auto,f_auto/`);
@@ -69,7 +76,7 @@ function optimizeImage(url, size = 300) {
 const PLACEHOLDER_IMG =
     "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><rect width='100%' height='100%' fill='%23eeeeee'/></svg>";
 
-// حماية من الرموز الخاصة في اسم المنتج
+// حماية من الرموز الخاصة
 function escapeHTML(str) {
     return String(str ?? "").replace(/[&<>"']/g, c => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -85,34 +92,83 @@ function debounce(fn, delay = 250) {
     };
 }
 
+// تحويل نتيجة Firebase إلى قائمة (بنفس ترتيب Firebase)
+function snapshotToList(snapshot) {
+    const list = [];
+    snapshot.forEach((child) => {
+        list.push({ id: child.key, ...child.val() });
+    });
+    return list;
+}
+
 // ==========================================
 // جلب المنتجات
+// المرحلة 1: أول 3 منتجات فقط (سريعة جداً)
+// المرحلة 2: باقي المنتجات بالخلفية
 // ==========================================
 function fetchProductsFromFirebase() {
-    let container = document.getElementById("products-container");
-    if (container) {
+    const container = document.getElementById("products-container");
+
+    // إذا الزبون زار الموقع قبل: اعرض النسخة المخزنة فوراً
+    let cachedJson = null;
+    try {
+        cachedJson = localStorage.getItem(CACHE_KEY);
+        if (cachedJson) {
+            allProductsList = JSON.parse(cachedJson);
+            displayProducts();
+        }
+    } catch (e) {
+        cachedJson = null;
+    }
+
+    if (!cachedJson && container) {
         container.innerHTML = `<p style="text-align:center; width:100%; grid-column:1/-1; padding:20px; font-weight:bold;">جاري تحميل المنتجات...</p>`;
     }
 
-    db.ref("products").once("value").then((snapshot) => {
-        const data = snapshot.val();
-        allProductsList = [];
+    const t0 = performance.now();
 
-        if (data) {
-            Object.keys(data).forEach((key) => {
-                allProductsList.push({
-                    id: key,
-                    ...data[key]
-                });
-            });
+    function loadAllProducts() {
+        db.ref("products").once("value").then((snapshot) => {
+            const list = snapshotToList(snapshot);
+            const newJson = JSON.stringify(list);
+            console.log(`كل المنتجات: ${Math.round(performance.now() - t0)}ms | ${list.length} منتج | ${(newJson.length / 1024).toFixed(0)}KB`);
+
+            // إذا ما تغيّر شي عن النسخة المخزنة، لا تعيد الرسم
+            if (cachedJson && cachedJson === newJson) return;
+
+            allProductsList = list;
+            try { localStorage.setItem(CACHE_KEY, newJson); } catch (e) { }
+
+            if (cachedJson || renderedCount === 0) {
+                displayProducts();          // تغيّرت البيانات أو ما انعرض شي: ارسم من جديد
+            } else {
+                continueAfterFullLoad();    // نكمل بدون ما نمسح اللي انعرض
+            }
+        }).catch((error) => {
+            console.error("خطأ:", error);
+            if (container && allProductsList.length === 0) {
+                container.innerHTML = `<p style="text-align:center; color:red; grid-column:1/-1;">تعذر تحميل المنتجات، تحقق من الإنترنت.</p>`;
+            }
+        });
+    }
+
+    if (cachedJson) {
+        // عندنا نسخة مخزنة: حدّثها بالخلفية
+        loadAllProducts();
+        return;
+    }
+
+    // أول زيارة: أول 3 منتجات فقط
+    db.ref("products").limitToFirst(PAGE_SIZE).once("value").then((snapshot) => {
+        const list = snapshotToList(snapshot);
+        console.log(`أول ${list.length} منتجات: ${Math.round(performance.now() - t0)}ms`);
+        if (allProductsList.length === 0 && list.length > 0) {
+            allProductsList = list;
+            displayProducts();
         }
-        displayProducts();
     }).catch((error) => {
-        console.error("خطأ:", error);
-        if (container) {
-            container.innerHTML = `<p style="text-align:center; color:red; grid-column:1/-1;">تعذر تحميل المنتجات، تحقق من الإنترنت.</p>`;
-        }
-    });
+        console.error("خطأ بالمرحلة الأولى:", error);
+    }).then(loadAllProducts);
 }
 
 function filterByCategory(category, btnElement) {
@@ -133,64 +189,121 @@ function changeProductQty(productId, amount) {
 }
 
 // ==========================================
-// عرض المنتجات (نسخة سريعة)
+// عرض المنتجات (على دفعات)
 // ==========================================
-function displayProducts() {
-    const container = document.getElementById("products-container");
-    if (!container) return;
-
-    let filteredProducts = allProductsList.filter(p => p.available !== false);
+function getFilteredProducts() {
+    let filtered = allProductsList.filter(p => p.available !== false);
 
     if (currentCategory !== 'الكل') {
-        filteredProducts = filteredProducts.filter(p => p.category === currentCategory);
+        filtered = filtered.filter(p => p.category === currentCategory);
     }
 
     const searchInput = document.getElementById("search-input");
     if (searchInput && searchInput.value.trim() !== "") {
         const query = searchInput.value.trim().toLowerCase();
-        filteredProducts = filteredProducts.filter(p => p.name && p.name.toLowerCase().includes(query));
+        filtered = filtered.filter(p => p.name && p.name.toLowerCase().includes(query));
     }
+    return filtered;
+}
 
-    if (filteredProducts.length === 0) {
+function createProductCard(product) {
+    const card = document.createElement("div");
+    card.className = "product-card";
+
+    const imgSrc = product.image && product.image.trim() !== ""
+        ? optimizeImage(product.image.trim())
+        : PLACEHOLDER_IMG;
+
+    card.innerHTML = `
+        <div style="width:100%; height:160px; overflow:hidden; border-radius:8px; margin-bottom:10px; background-color:#f0f0f0;">
+            <img src="${imgSrc}" alt="" loading="lazy" decoding="async"
+                 onerror="this.onerror=null; this.src='${PLACEHOLDER_IMG}'"
+                 style="width:100%; height:100%; object-fit:cover; display:block;">
+        </div>
+        <h3>${escapeHTML(product.name)}</h3>
+        <div class="price">${product.price} دينار</div>
+        <div class="available">✓ متوفر</div>
+
+        <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0;">
+            <button type="button" onclick="changeProductQty('${product.id}', -1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">-</button>
+            <input type="number" id="qty-${product.id}" value="1" min="1" readonly style="width:45px; text-align:center; border:1px solid #ccc; border-radius:5px; padding:4px; font-weight:bold;">
+            <button type="button" onclick="changeProductQty('${product.id}', 1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">+</button>
+        </div>
+
+        <button class="add-button" onclick="addToCart('${product.id}')">🛒 أضف إلى السلة</button>
+    `;
+    return card;
+}
+
+// علامة نهاية القائمة: لما الزبون يقرب منها نحمّل دفعة جديدة
+function updateSentinel() {
+    const container = document.getElementById("products-container");
+    if (!container) return;
+
+    const old = document.getElementById("load-more-sentinel");
+    if (old) old.remove();
+    if (loadMoreObserver) loadMoreObserver.disconnect();
+
+    if (renderedCount >= currentFiltered.length) return;
+
+    const sentinel = document.createElement("div");
+    sentinel.id = "load-more-sentinel";
+    sentinel.style.cssText = "grid-column:1/-1; height:1px;";
+    container.appendChild(sentinel);
+
+    if ("IntersectionObserver" in window) {
+        if (!loadMoreObserver) {
+            loadMoreObserver = new IntersectionObserver((entries) => {
+                if (entries.some(e => e.isIntersecting)) renderNextBatch();
+            }, { rootMargin: "200px" });
+        }
+        loadMoreObserver.observe(sentinel);
+    } else {
+        renderNextBatch(); // متصفح قديم: اعرض الكل تدريجياً
+    }
+}
+
+function renderNextBatch() {
+    const container = document.getElementById("products-container");
+    if (!container) return;
+
+    const old = document.getElementById("load-more-sentinel");
+    if (old) old.remove();
+
+    const slice = currentFiltered.slice(renderedCount, renderedCount + PAGE_SIZE);
+    const fragment = document.createDocumentFragment();
+    slice.forEach(p => fragment.appendChild(createProductCard(p)));
+    renderedCount += slice.length;
+    container.appendChild(fragment);
+
+    updateSentinel();
+}
+
+function displayProducts() {
+    const container = document.getElementById("products-container");
+    if (!container) return;
+
+    if (loadMoreObserver) loadMoreObserver.disconnect();
+
+    const filtered = getFilteredProducts();
+
+    if (filtered.length === 0) {
+        currentFiltered = [];
+        renderedCount = 0;
         container.innerHTML = "<p style='text-align:center; width:100%; font-size:18px; color:#666; grid-column:1/-1;'>لا توجد منتجات حالياً.</p>";
         return;
     }
 
-    // نبني كل البطاقات في الذاكرة ونضيفها مرة وحدة
-    const fragment = document.createDocumentFragment();
-
-    filteredProducts.forEach(product => {
-        const card = document.createElement("div");
-        card.className = "product-card";
-
-        const imgSrc = product.image && product.image.trim() !== ""
-            ? optimizeImage(product.image.trim())
-            : PLACEHOLDER_IMG;
-
-        card.innerHTML = `
-            <div style="width:100%; height:160px; overflow:hidden; border-radius:8px; margin-bottom:10px; background-color:#f0f0f0;">
-                <img src="${imgSrc}" alt="" loading="lazy" decoding="async"
-                     onerror="this.onerror=null; this.src='${PLACEHOLDER_IMG}'"
-                     style="width:100%; height:100%; object-fit:cover; display:block;">
-            </div>
-            <h3>${escapeHTML(product.name)}</h3>
-            <div class="price">${product.price} دينار</div>
-            <div class="available">✓ متوفر</div>
-
-            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0;">
-                <button type="button" onclick="changeProductQty('${product.id}', -1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">-</button>
-                <input type="number" id="qty-${product.id}" value="1" min="1" readonly style="width:45px; text-align:center; border:1px solid #ccc; border-radius:5px; padding:4px; font-weight:bold;">
-                <button type="button" onclick="changeProductQty('${product.id}', 1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">+</button>
-            </div>
-
-            <button class="add-button" onclick="addToCart('${product.id}')">🛒 أضف إلى السلة</button>
-        `;
-
-        fragment.appendChild(card);
-    });
-
+    currentFiltered = filtered;
+    renderedCount = 0;
     container.innerHTML = "";
-    container.appendChild(fragment);
+    renderNextBatch();
+}
+
+// لما توصل كل المنتجات والزبون شايف أول 3: نكمل بدون ما نمسح شي
+function continueAfterFullLoad() {
+    currentFiltered = getFilteredProducts();
+    updateSentinel();
 }
 
 // ==========================================
