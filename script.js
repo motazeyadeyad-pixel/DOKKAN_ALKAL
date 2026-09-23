@@ -3,13 +3,13 @@
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyCijhMKaJTyfL8p76-31GbfzCpLF2bui1A",
-    authDomain: "motaz-3aa5d.firebaseapp.com",
-    databaseURL: "https://motaz-3aa5d-default-rtdb.firebaseio.com",
-    projectId: "motaz-3aa5d",
-    storageBucket: "motaz-3aa5d.firebasestorage.app",
-    messagingSenderId: "494735507077",
-    appId: "1:494735507077:web:b3d534c45910484ca433ec",
-    measurementId: "G-9QLGLJG4P0"
+    authDomain: "motaz-f6c67.firebaseapp.com",
+    databaseURL: "https://motaz-f6c67-default-rtdb.firebaseio.com",
+    projectId: "motaz-f6c67",
+    storageBucket: "motaz-f6c67.firebasestorage.app",
+    messagingSenderId: "553305284670",
+    appId: "1:553305284670:web:4fdf78e304fd7aaa34b16f",
+    measurementId: "G-YLHN11XE88"
 };
 
 if (typeof firebase !== "undefined" && !firebase.apps.length) {
