@@ -248,7 +248,8 @@ function updateSentinel() {
 
     const sentinel = document.createElement("div");
     sentinel.id = "load-more-sentinel";
-    sentinel.style.cssText = "grid-column:1/-1; height:1px;";
+    sentinel.className = "loader-container";                          // <<< جديد
+    sentinel.innerHTML = `<div class="spinner"></div><p>جاري تحميل المزيد...</p>`; // <<< جديد
     container.appendChild(sentinel);
 
     if ("IntersectionObserver" in window) {
