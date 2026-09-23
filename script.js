@@ -21,8 +21,8 @@ const db = firebase.database();
 // ==========================================
 // إعدادات Cloudinary لرفع الصور
 // ==========================================
-const CLOUDINARY_CLOUD_NAME = "gfyyessl"; 
-const CLOUDINARY_UPLOAD_PRESET = "dokan_preset"; 
+const CLOUDINARY_CLOUD_NAME = "gfyyessl";
+const CLOUDINARY_UPLOAD_PRESET = "dokan_preset";
 
 function openCloudinaryUploadWidget(callback) {
     if (typeof cloudinary === "undefined") {
@@ -54,6 +54,40 @@ const TELEGRAM_BOT_TOKEN = "8832237966:AAFM0maLZu_CPxOKk77kGblwx2FJKwJ5X7U";
 const TELEGRAM_CHAT_ID = "1953861313";
 const MY_PHONE_NUMBER = "962775279117";
 
+// ==========================================
+// أدوات تسريع التحميل
+// ==========================================
+
+// تصغير صور Cloudinary تلقائياً
+function optimizeImage(url, size = 300) {
+    if (!url || !url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
+    if (url.includes("/upload/w_")) return url; // مصغّرة أصلاً
+    return url.replace("/upload/", `/upload/w_${size},h_${size},c_fill,q_auto,f_auto/`);
+}
+
+// صورة بديلة خفيفة
+const PLACEHOLDER_IMG =
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><rect width='100%' height='100%' fill='%23eeeeee'/></svg>";
+
+// حماية من الرموز الخاصة في اسم المنتج
+function escapeHTML(str) {
+    return String(str ?? "").replace(/[&<>"']/g, c => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+}
+
+// تأخير البحث حتى يتوقف المستخدم عن الكتابة
+function debounce(fn, delay = 250) {
+    let timer;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
+// ==========================================
+// جلب المنتجات
+// ==========================================
 function fetchProductsFromFirebase() {
     let container = document.getElementById("products-container");
     if (container) {
@@ -98,11 +132,12 @@ function changeProductQty(productId, amount) {
     qtyInput.value = currentQty;
 }
 
+// ==========================================
+// عرض المنتجات (نسخة سريعة)
+// ==========================================
 function displayProducts() {
-    let container = document.getElementById("products-container");
+    const container = document.getElementById("products-container");
     if (!container) return;
-    
-    container.innerHTML = "";
 
     let filteredProducts = allProductsList.filter(p => p.available !== false);
 
@@ -117,44 +152,50 @@ function displayProducts() {
     }
 
     if (filteredProducts.length === 0) {
-        container.innerHTML = "<p style='text-align:center; width:100%; font-size:18px; color: #666; grid-column: 1/-1;'>لا توجد منتجات حالياً.</p>";
+        container.innerHTML = "<p style='text-align:center; width:100%; font-size:18px; color:#666; grid-column:1/-1;'>لا توجد منتجات حالياً.</p>";
         return;
     }
 
-    filteredProducts.forEach(function(product) {
-        let card = document.createElement("div");
+    // نبني كل البطاقات في الذاكرة ونضيفها مرة وحدة
+    const fragment = document.createDocumentFragment();
+
+    filteredProducts.forEach(product => {
+        const card = document.createElement("div");
         card.className = "product-card";
 
-        let imgContainer = document.createElement("div");
-        imgContainer.style.cssText = "width: 100%; height: 160px; overflow: hidden; border-radius: 8px; margin-bottom: 10px; background-color: #f0f0f0;";
+        const imgSrc = product.image && product.image.trim() !== ""
+            ? optimizeImage(product.image.trim())
+            : PLACEHOLDER_IMG;
 
-        let imgElement = document.createElement("img");
-        imgElement.src = product.image && product.image.trim() !== "" ? product.image : "https://via.placeholder.com/150?text=منتج";
-        imgElement.style.cssText = "width: 100%; height: 100%; object-fit: cover; display: block;";
-        
-        imgContainer.appendChild(imgElement);
-        card.appendChild(imgContainer);
-
-        card.innerHTML += `
-            <h3>${product.name}</h3>
+        card.innerHTML = `
+            <div style="width:100%; height:160px; overflow:hidden; border-radius:8px; margin-bottom:10px; background-color:#f0f0f0;">
+                <img src="${imgSrc}" alt="" loading="lazy" decoding="async"
+                     onerror="this.onerror=null; this.src='${PLACEHOLDER_IMG}'"
+                     style="width:100%; height:100%; object-fit:cover; display:block;">
+            </div>
+            <h3>${escapeHTML(product.name)}</h3>
             <div class="price">${product.price} دينار</div>
             <div class="available">✓ متوفر</div>
-            
-            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0;">
+
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0;">
                 <button type="button" onclick="changeProductQty('${product.id}', -1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">-</button>
-                <input type="number" id="qty-${product.id}" value="1" min="1" readonly style="width: 45px; text-align: center; border: 1px solid #ccc; border-radius: 5px; padding: 4px; font-weight: bold;">
+                <input type="number" id="qty-${product.id}" value="1" min="1" readonly style="width:45px; text-align:center; border:1px solid #ccc; border-radius:5px; padding:4px; font-weight:bold;">
                 <button type="button" onclick="changeProductQty('${product.id}', 1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">+</button>
             </div>
 
-            <button class="add-button" onclick="addToCart('${product.id}')">
-                🛒 أضف إلى السلة
-            </button>
+            <button class="add-button" onclick="addToCart('${product.id}')">🛒 أضف إلى السلة</button>
         `;
 
-        container.appendChild(card);
+        fragment.appendChild(card);
     });
+
+    container.innerHTML = "";
+    container.appendChild(fragment);
 }
 
+// ==========================================
+// السلة
+// ==========================================
 function addToCart(productId) {
     let product = allProductsList.find(item => item.id == productId);
     const qtyInput = document.getElementById(`qty-${productId}`);
@@ -192,16 +233,16 @@ function updateCart() {
         cartItems.innerHTML = "السلة فارغة";
     } else {
         cartItems.innerHTML = "";
-        cart.forEach(function(product, index) {
+        cart.forEach(function (product, index) {
             let itemTotal = product.price * product.quantity;
             subtotal += itemTotal;
 
             let item = document.createElement("div");
             item.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #f9f9f9; padding: 8px; border-radius: 5px;";
-            
+
             item.innerHTML = `
                 <div style="flex:1;">
-                    <strong>${product.name}</strong><br>
+                    <strong>${escapeHTML(product.name)}</strong><br>
                     <small>${product.price} × ${product.quantity} = ${itemTotal.toFixed(2)} دينار</small>
                 </div>
                 <div style="display:flex; align-items:center; gap:5px;">
@@ -276,7 +317,7 @@ function getLocation() {
         return;
     }
     if (status) status.textContent = "جاري تحديد الموقع...";
-    
+
     navigator.geolocation.getCurrentPosition(
         (position) => {
             userLocationUrl = `https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude}`;
@@ -286,6 +327,9 @@ function getLocation() {
     );
 }
 
+// ==========================================
+// إرسال الطلب
+// ==========================================
 function getOrderData() {
     if (cart.length === 0) {
         alert("السلة فارغة!");
@@ -344,14 +388,17 @@ function orderViaWhatsApp() {
 
     let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار`;
     let whatsappUrl = `https://wa.me/${MY_PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
-    
+
     alert("تم إرسال الطلب!");
     cart = []; userLocationUrl = ""; updateCart(); closeCart();
     window.open(whatsappUrl, "_blank");
 }
 
-document.addEventListener("DOMContentLoaded", function() {
+// ==========================================
+// تشغيل الموقع
+// ==========================================
+document.addEventListener("DOMContentLoaded", function () {
     fetchProductsFromFirebase();
     const searchInput = document.getElementById("search-input");
-    if (searchInput) searchInput.addEventListener("input", displayProducts);
+    if (searchInput) searchInput.addEventListener("input", debounce(displayProducts, 250));
 });
