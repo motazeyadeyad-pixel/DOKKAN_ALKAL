@@ -2,14 +2,14 @@
 // إعدادات Firebase (لوحة التحكم)
 // ==========================================
 const firebaseConfig = {
-    apiKey: "AIzaSyAwjMnpwY_gUWLi5w0KQRs9_tTXPjx7XZc",
-    authDomain: "motaz-3aa5d.firebaseapp.com",
-    databaseURL: "https://motaz-3aa5d-default-rtdb.firebaseio.com",
-    projectId: "motaz-3aa5d",
-    storageBucket: "motaz-3aa5d.firebasestorage.app",
-    messagingSenderId: "494735507077",
-    appId: "1:494735507077:web:b3d534c45910484ca433ec",
-    measurementId: "G-9QLGLJG4P0"
+    apiKey: "AIzaSyCijhMKaJTyfL8p76-31GbfzCpLF2bui1A",
+    authDomain: "motaz-f6c67.firebaseapp.com",
+    databaseURL: "https://motaz-f6c67-default-rtdb.firebaseio.com",
+    projectId: "motaz-f6c67",
+    storageBucket: "motaz-f6c67.firebasestorage.app",
+    messagingSenderId: "553305284670",
+    appId: "1:553305284670:web:4fdf78e304fd7aaa34b16f",
+    measurementId: "G-YLHN11XE88"
 };
 
 if (typeof firebase !== "undefined" && !firebase.apps.length) {
@@ -86,7 +86,7 @@ function addNewProduct(productData) {
             alert("حدث خطأ أثناء إضافة المنتج.");
         } else {
             alert("تم إضافة المنتج بنجاح!");
-            loadAdminProducts(); // تحديث القائمة فوراً
+            loadAdminProducts();
         }
     });
 }
@@ -96,7 +96,7 @@ function deleteProduct(productId) {
     if (confirm("هل أنت متأكد من حذف هذا المنتج؟")) {
         db.ref("products/" + productId).remove().then(() => {
             alert("تم حذف المنتج بنجاح.");
-            loadAdminProducts(); // تحديث القائمة فوراً
+            loadAdminProducts();
         }).catch((error) => {
             alert("خطأ في حذف المنتج.");
         });
@@ -170,7 +170,7 @@ function renderNextAdminBatch() {
     updateAdminSentinel();
 }
 
-// جلب المنتجات للوحة التحكم وتفعيل ميزة الـ 45 منتج بالبداية
+// جلب المنتجات للوحة التحكم
 function loadAdminProducts() {
     const adminContainer = document.getElementById("admin-products-container");
     if (!adminContainer) return;

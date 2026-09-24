@@ -300,8 +300,6 @@
             }
         }
 
-        // لما يضغط الزبون على زر "تسجيل الدخول" بالهيدر: لو ما مسجل دخول يفتح المودال،
-        // لو مسجل دخول يفتح له خيارات الحساب (سجل الطلبات / تسجيل خروج)
         function handleAccountClick() {
             if (typeof currentUser !== "undefined" && currentUser) {
                 const modal = document.getElementById("auth-modal");
