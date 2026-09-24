@@ -717,6 +717,62 @@ nav a:hover {
     padding: 8px 10px;
 }
 
+/* تقييم الدكان بالفوتر */
+.store-rating-box {
+    margin: 15px 0;
+}
+
+.store-rating-stars {
+    cursor: pointer;
+    font-size: 26px;
+    letter-spacing: 4px;
+}
+
+.store-rating-stars span[data-star] {
+    transition: transform 0.15s;
+}
+
+.store-rating-stars span[data-star]:hover {
+    transform: scale(1.2);
+}
+
+.store-rating-text {
+    font-size: 13px;
+    opacity: 0.85;
+    margin-top: 4px;
+}
+
+/* إشعارات خفيفة (Toast) بدل alert */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    pointer-events: none;
+}
+
+.toast-msg {
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 14px;
+    opacity: 0;
+    transform: translateY(15px);
+    transition: all 0.25s ease;
+    white-space: nowrap;
+}
+
+.toast-msg.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 /* الفوتر */
 footer {
     background: linear-gradient(135deg, #006b3c, #004d2a);

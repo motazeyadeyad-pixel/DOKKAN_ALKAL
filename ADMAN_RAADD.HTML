@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة الطلبات - دكان الخال</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Arial, sans-serif; }
+    body { background:#f5f7f6; padding:15px; }
+    h1 { color:#006b3c; text-align:center; margin-bottom:20px; font-size:22px; }
+    #login-box { max-width:320px; margin:80px auto; background:#fff; padding:25px; border-radius:14px; box-shadow:0 6px 20px rgba(0,0,0,0.1); text-align:center; }
+    #login-box input { width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; margin:12px 0; font-size:15px; }
+    #login-box button { width:100%; padding:12px; background:#006b3c; color:#fff; border:none; border-radius:10px; font-weight:bold; cursor:pointer; }
+    .order-card { background:#fff; border-radius:14px; padding:15px; margin-bottom:14px; box-shadow:0 3px 12px rgba(0,0,0,0.06); }
+    .order-card .top { display:flex; justify-content:space-between; font-weight:bold; margin-bottom:6px; }
+    .order-card .items { font-size:14px; color:#555; margin-bottom:6px; }
+    .order-card .meta { font-size:13px; color:#777; margin-bottom:10px; }
+    .status-buttons { display:flex; flex-wrap:wrap; gap:6px; }
+    .status-buttons button { flex:1; min-width:70px; padding:8px 4px; font-size:12px; border-radius:8px; border:1px solid #ccc; background:#f0f0f0; cursor:pointer; }
+    .status-buttons button.active { background:#006b3c; color:#fff; border-color:#006b3c; font-weight:bold; }
+    #orders-list { max-width:600px; margin:0 auto; }
+    .empty { text-align:center; color:#888; padding:40px; }
+</style>
+</head>
+<body>
+
+<div id="login-box">
+    <h1>دخول الإدارة</h1>
+    <input type="password" id="admin-pass" placeholder="كلمة السر">
+    <button onclick="checkPassword()">دخول</button>
+</div>
+
+<div id="admin-panel" style="display:none;">
+    <h1>📦 إدارة الطلبات</h1>
+    <div id="orders-list"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script>
+    // ⚠️ غيّر كلمة السر هاي لأي شي تحبه أنت بس
+    const ADMIN_PASSWORD = "motaz123";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCijhMKaJTyfL8p76-31GbfzCpLF2bui1A",
+        authDomain: "motaz-f6c67.firebaseapp.com",
+        databaseURL: "https://motaz-f6c67-default-rtdb.firebaseio.com",
+        projectId: "motaz-f6c67",
+        storageBucket: "motaz-f6c67.firebasestorage.app",
+        messagingSenderId: "553305284670",
+        appId: "1:553305284670:web:4fdf78e304fd7aaa34b16f"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const ORDER_STATUSES = ["تم استلام الطلب", "جاري التجهيز", "خرج للتوصيل", "تم التسليم"];
+
+    function checkPassword() {
+        const val = document.getElementById("admin-pass").value;
+        if (val === ADMIN_PASSWORD) {
+            document.getElementById("login-box").style.display = "none";
+            document.getElementById("admin-panel").style.display = "block";
+            loadOrders();
+        } else {
+            alert("كلمة السر غلط");
+        }
+    }
+
+    function loadOrders() {
+        db.ref("orders").limitToLast(50).on("value", (snap) => {
+            const listEl = document.getElementById("orders-list");
+            const data = snap.val();
+            if (!data) {
+                listEl.innerHTML = "<p class='empty'>لا يوجد طلبات بعد.</p>";
+                return;
+            }
+            const orders = Object.keys(data).map(id => ({ id, ...data[id] }));
+            orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+            listEl.innerHTML = orders.map(order => {
+                const itemsText = (order.items || []).map(i => `${i.name} x${i.quantity}`).join("، ");
+                const date = order.createdAt ? new Date(order.createdAt).toLocaleString("ar-EG") : "";
+                const buttons = ORDER_STATUSES.map(status =>
+                    `<button class="${order.status === status ? 'active' : ''}" onclick="updateStatus('${order.id}','${status}')">${status}</button>`
+                ).join("");
+
+                return `
+                    <div class="order-card">
+                        <div class="top"><span>👤 ${escapeHTML(order.customerName || "")}</span><span>${(order.total || 0).toFixed(2)} د</span></div>
+                        <div class="items">${escapeHTML(itemsText)}</div>
+                        <div class="meta">📞 ${escapeHTML(order.phone || "")} — ${date}</div>
+                        <div class="status-buttons">${buttons}</div>
+                    </div>`;
+            }).join("");
+        });
+    }
+
+    function updateStatus(orderId, status) {
+        db.ref(`orders/${orderId}/status`).set(status);
+    }
+
+    function escapeHTML(str) {
+        return String(str ?? "").replace(/[&<>"']/g, c => ({
+            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        }[c]));
+    }
+</script>
+</body>
+</html>

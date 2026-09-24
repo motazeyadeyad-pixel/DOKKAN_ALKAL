@@ -18,6 +18,28 @@ if (typeof firebase !== "undefined" && !firebase.apps.length) {
 
 const db = firebase.database();
 const auth = firebase.auth ? firebase.auth() : null; // تأكد إنك مضيف firebase-auth.js بالـ HTML
+if (auth) { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {}); }
+
+// ==========================================
+// إشعار خفيف بدل alert() المزعج
+// ==========================================
+function showToast(msg, duration = 2200) {
+    let box = document.getElementById("toast-container");
+    if (!box) {
+        box = document.createElement("div");
+        box.id = "toast-container";
+        document.body.appendChild(box);
+    }
+    const t = document.createElement("div");
+    t.className = "toast-msg";
+    t.textContent = msg;
+    box.appendChild(t);
+    setTimeout(() => t.classList.add("show"), 10);
+    setTimeout(() => {
+        t.classList.remove("show");
+        setTimeout(() => t.remove(), 300);
+    }, duration);
+}
 
 // ==========================================
 // إعدادات Cloudinary لرفع الصور
@@ -244,11 +266,6 @@ function createProductCard(product) {
         <div class="price">${product.price} دينار</div>
         <div class="available">✓ متوفر</div>
 
-        <div class="rating-widget" id="rating-${product.id}" style="margin:6px 0; font-size:14px; color:#888;">
-            <span class="rating-stars" data-id="${product.id}">☆☆☆☆☆</span>
-            <span class="rating-avg-text">لا يوجد تقييم بعد</span>
-        </div>
-
         <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0;">
             <button type="button" onclick="changeProductQty('${product.id}', -1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">-</button>
             <input type="number" id="qty-${product.id}" value="1" min="1" readonly style="width:45px; text-align:center; border:1px solid #ccc; border-radius:5px; padding:4px; font-weight:bold;">
@@ -257,9 +274,6 @@ function createProductCard(product) {
 
         <button class="add-button" onclick="addToCart('${product.id}')">🛒 أضف إلى السلة</button>
     `;
-
-    renderStarPicker(card.querySelector(`.rating-stars[data-id="${product.id}"]`), product.id);
-    loadProductRating(product.id);
 
     return card;
 }
@@ -358,7 +372,7 @@ function addToCart(productId) {
         }
         if (qtyInput) qtyInput.value = 1;
         updateCart();
-        alert(`تمت إضافة ${product.name} إلى السلة 🛒`);
+        showToast(`تمت إضافة ${product.name} 🛒`);
     }
 }
 
@@ -511,7 +525,7 @@ function registerUser() {
             return db.ref(`users/${uid}/profile`).set({ name, phone: phone || "", email });
         })
         .then(() => {
-            alert("تم إنشاء الحساب بنجاح ✅");
+            showToast("تم إنشاء الحساب ✅");
             closeAuthModal();
         })
         .catch((err) => alert("خطأ: " + translateAuthError(err)));
@@ -528,7 +542,7 @@ function loginUser() {
     }
 
     auth.signInWithEmailAndPassword(email, password)
-        .then(() => { alert("تم تسجيل الدخول ✅"); closeAuthModal(); })
+        .then(() => { showToast("تم تسجيل الدخول ✅"); closeAuthModal(); })
         .catch((err) => alert("خطأ: " + translateAuthError(err)));
 }
 
@@ -545,7 +559,7 @@ function loginWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     auth.signInWithPopup(provider)
         .then((cred) => ensureUserProfile(cred.user))
-        .then(() => { alert("تم تسجيل الدخول بنجاح ✅"); closeAuthModal(); })
+        .then(() => { showToast("تم تسجيل الدخول ✅"); closeAuthModal(); })
         .catch((err) => alert("خطأ: " + translateAuthError(err)));
 }
 
@@ -557,7 +571,7 @@ function loginWithFacebook() {
     const provider = new firebase.auth.FacebookAuthProvider();
     auth.signInWithPopup(provider)
         .then((cred) => ensureUserProfile(cred.user))
-        .then(() => { alert("تم تسجيل الدخول بنجاح ✅"); closeAuthModal(); })
+        .then(() => { showToast("تم تسجيل الدخول ✅"); closeAuthModal(); })
         .catch((err) => alert("خطأ: " + translateAuthError(err)));
 }
 
@@ -601,7 +615,7 @@ function sendPhoneOtp() {
             phoneConfirmationResult = confirmationResult;
             const otpGroup = document.getElementById("phone-otp-group");
             if (otpGroup) otpGroup.style.display = "flex";
-            alert("تم إرسال رمز التحقق عبر رسالة نصية 📩");
+            showToast("تم إرسال رمز التحقق 📩");
         })
         .catch((err) => {
             alert("خطأ بإرسال الرمز: " + err.message);
@@ -619,7 +633,7 @@ function verifyPhoneOtp() {
 
     phoneConfirmationResult.confirm(code)
         .then((cred) => ensureUserProfile(cred.user))
-        .then(() => { alert("تم تسجيل الدخول بنجاح ✅"); closeAuthModal(); })
+        .then(() => { showToast("تم تسجيل الدخول ✅"); closeAuthModal(); })
         .catch((err) => alert("رمز التحقق غير صحيح: " + err.message));
 }
 
@@ -677,7 +691,7 @@ if (auth) {
             currentUserProfile = null;
             userFavorites = {};
             updateAccountUI();
-            displayProducts();
+            if (allProductsList.length > 0) displayProducts();
         }
     });
 }
@@ -714,33 +728,32 @@ function toggleFavorite(productId, btnEl) {
 }
 
 // ==========================================
-// تقييم المنتجات ⭐
+// تقييم الدكان (تقييم واحد عام بدل تقييم كل منتج)
+// متطلبات الـ HTML: عنصر id="store-rating-stars" وعنصر id="store-rating-text"
 // ==========================================
-function renderStarPicker(el, productId) {
+function renderStoreStarPicker() {
+    const el = document.getElementById("store-rating-stars");
     if (!el) return;
     el.style.cursor = "pointer";
-    el.innerHTML = "☆☆☆☆☆".split("").map((s, i) =>
-        `<span data-star="${i + 1}" style="font-size:16px;">☆</span>`
-    ).join("");
+    el.innerHTML = [1, 2, 3, 4, 5].map(i => `<span data-star="${i}">☆</span>`).join("");
 
     el.querySelectorAll("span[data-star]").forEach(starSpan => {
         starSpan.addEventListener("click", () => {
-            const value = parseInt(starSpan.dataset.star);
-            rateProduct(productId, value);
+            rateStore(parseInt(starSpan.dataset.star));
         });
     });
 }
 
-function rateProduct(productId, value) {
+function rateStore(value) {
     if (!requireLogin()) return;
 
     const uid = currentUser.uid;
-    const userRatingRef = db.ref(`ratings/${productId}/${uid}`);
+    const userRatingRef = db.ref(`storeRatings/${uid}`);
 
     userRatingRef.once("value").then(snap => {
         const oldValue = snap.val();
         return userRatingRef.set(value).then(() => {
-            const statsRef = db.ref(`ratingStats/${productId}`);
+            const statsRef = db.ref("storeRatingStats");
             return statsRef.transaction(stats => {
                 if (!stats) stats = { sum: 0, count: 0 };
                 if (oldValue) {
@@ -753,28 +766,24 @@ function rateProduct(productId, value) {
             });
         });
     }).then(() => {
-        loadProductRating(productId);
-        alert("شكراً لتقييمك ⭐");
+        loadStoreRating();
+        showToast("شكراً لتقييمك ⭐");
     });
 }
 
-function loadProductRating(productId) {
-    db.ref(`ratingStats/${productId}`).once("value").then(snap => {
+function loadStoreRating() {
+    const starsEl = document.getElementById("store-rating-stars");
+    const textEl = document.getElementById("store-rating-text");
+    if (!starsEl && !textEl) return;
+
+    db.ref("storeRatingStats").once("value").then(snap => {
         const stats = snap.val();
-        ratingStatsCache[productId] = stats;
-        const widget = document.getElementById(`rating-${productId}`);
-        if (!widget) return;
-
-        const avgTextEl = widget.querySelector(".rating-avg-text");
-        const starsEl = widget.querySelector(".rating-stars");
-
         if (!stats || !stats.count) {
-            if (avgTextEl) avgTextEl.textContent = "لا يوجد تقييم بعد";
+            if (textEl) textEl.textContent = "لا يوجد تقييم بعد";
             return;
         }
-
         const avg = stats.sum / stats.count;
-        if (avgTextEl) avgTextEl.textContent = `${avg.toFixed(1)} (${stats.count} تقييم)`;
+        if (textEl) textEl.textContent = `${avg.toFixed(1)} من 5 (${stats.count} تقييم)`;
         if (starsEl) {
             const rounded = Math.round(avg);
             starsEl.querySelectorAll("span[data-star]").forEach(s => {
@@ -792,6 +801,14 @@ function getOrderData() {
         alert("السلة فارغة!");
         return null;
     }
+
+    const MIN_ORDER_TOTAL = 1; // الحد الأدنى للطلب بالدينار
+    const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    if (cartSubtotal < MIN_ORDER_TOTAL) {
+        alert(`الحد الأدنى للطلب ${MIN_ORDER_TOTAL} دينار. مجموع سلتك الحالي: ${cartSubtotal.toFixed(2)} دينار.`);
+        return null;
+    }
+
     let name = document.getElementById("customer-name").value.trim();
     let phone = document.getElementById("customer-phone").value.trim();
     let deliveryType = document.getElementById("delivery-type").value;
@@ -1038,7 +1055,7 @@ function reorderOrder(orderId) {
         updateCart();
         closeOrderHistoryModal();
         showCart();
-        alert("تمت إضافة منتجات الطلب السابق إلى سلتك 🛒");
+        showToast("تمت إضافة الطلب لسلتك 🛒");
     });
 }
 
@@ -1047,6 +1064,8 @@ function reorderOrder(orderId) {
 // ==========================================
 document.addEventListener("DOMContentLoaded", function () {
     fetchProductsFromFirebase();
+    renderStoreStarPicker();
+    loadStoreRating();
     const searchInput = document.getElementById("search-input");
     if (searchInput) searchInput.addEventListener("input", debounce(displayProducts, 250));
 });
