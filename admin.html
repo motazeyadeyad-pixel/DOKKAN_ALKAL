@@ -32,6 +32,8 @@
     .btn-save { background: #10b981; color: white; }
     .btn-fix { background: #7c3aed; color: white; }
     .heavy-badge { font-size: 11px; color: #b45309; font-weight: bold; }
+    .btn-bulk { background: #7c3aed; color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 14px; cursor: pointer; margin-bottom: 8px; }
+    .btn-bulk:disabled { opacity: 0.6; cursor: not-allowed; }
     #orders-list { max-width: 600px; margin: 0 auto; }
     .empty { text-align: center; color: #888; padding: 30px; }
 </style>
@@ -75,6 +77,8 @@
 <div class="admin-card">
     <h2>📦 المنتجات الحالية</h2>
     <div class="search-box">
+        <button type="button" id="bulk-fix-btn" class="btn-bulk" onclick="fixAllHeavyImages()">🔄 صلّح كل الصور الثقيلة تلقائياً</button>
+        <div id="bulk-progress" style="display:none; font-size:13px; text-align:center; margin-top:6px; color:#555;"></div>
         <input type="text" id="admin-search" placeholder="🔍 دور على منتج..." oninput="renderProductsList()">
     </div>
     <div id="admin-products-list">جاري التحميل...</div>
@@ -213,6 +217,51 @@
                 });
             }
         }).open();
+    }
+
+    // يرفع الصورة (base64) مباشرة لـ Cloudinary عن طريق fetch بدون فتح أي نافذة
+    function uploadBase64ToCloudinary(base64) {
+        const formData = new FormData();
+        formData.append("file", base64);
+        formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+        return fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+            method: "POST",
+            body: formData
+        }).then(res => res.json()).then(data => {
+            if (!data.secure_url) throw new Error(data.error?.message || "فشل الرفع");
+            return data.secure_url;
+        });
+    }
+
+    // يصلّح كل المنتجات يلي فيها صورة ثقيلة (base64) تلقائياً، وحدة وحدة، بدون أي تدخل يدوي
+    async function fixAllHeavyImages() {
+        const heavyProducts = allProducts.filter(p => typeof p.image === "string" && p.image.startsWith("data:"));
+        if (heavyProducts.length === 0) {
+            alert("ما في صور ثقيلة، كلها مصلّحة ✅");
+            return;
+        }
+
+        const btn = document.getElementById("bulk-fix-btn");
+        const progress = document.getElementById("bulk-progress");
+        btn.disabled = true;
+        progress.style.display = "block";
+
+        let done = 0, failed = 0;
+        for (const p of heavyProducts) {
+            progress.textContent = `جاري التصليح: ${done + failed + 1} من ${heavyProducts.length}...`;
+            try {
+                const newUrl = await uploadBase64ToCloudinary(p.image);
+                await db.ref(`products/${p.id}/image`).set(newUrl);
+                done++;
+            } catch (e) {
+                console.error("فشل تصليح منتج:", p.name, e);
+                failed++;
+            }
+        }
+
+        progress.textContent = `تم! ✅ ${done} صورة انصلحت${failed ? ` — ${failed} فشلت` : ""}.`;
+        btn.disabled = false;
     }
 
     function savePrice(id) {
