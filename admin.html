@@ -30,6 +30,8 @@
     .btn-toggle { background: #f59e0b; color: white; }
     .btn-delete { background: #ef4444; color: white; }
     .btn-save { background: #10b981; color: white; }
+    .btn-fix { background: #7c3aed; color: white; }
+    .heavy-badge { font-size: 11px; color: #b45309; font-weight: bold; }
     #orders-list { max-width: 600px; margin: 0 auto; }
     .empty { text-align: center; color: #888; padding: 30px; }
 </style>
@@ -170,7 +172,8 @@
         }
 
         list.innerHTML = items.map(p => {
-            const imgSrc = p.image || "https://via.placeholder.com/55?text=%20";
+            const isHeavy = typeof p.image === "string" && p.image.startsWith("data:");
+            const imgSrc = isHeavy ? p.image : (p.image || "https://via.placeholder.com/55?text=%20");
             const isAvailable = p.available !== false;
             return `
                 <div class="product-item">
@@ -179,15 +182,37 @@
                         <strong>${escapeHTML(p.name)}</strong>
                         <span class="category-badge">${escapeHTML(p.category || 'عام')}</span><br>
                         <span class="status-badge ${isAvailable ? 'status-on' : 'status-off'}">${isAvailable ? '✅ متوفر' : '⛔ غير متوفر'}</span>
+                        ${isHeavy ? `<br><span class="heavy-badge">⚠️ صورة ثقيلة — بتبطّئ الموقع</span>` : ""}
                     </div>
                     <div class="actions">
                         <input type="number" step="0.05" id="price-${p.id}" value="${p.price}" style="width:75px;">
                         <button class="btn-save" onclick="savePrice('${p.id}')">حفظ السعر</button>
                         <button class="btn-toggle" onclick="toggleAvailable('${p.id}', ${isAvailable})">${isAvailable ? 'إيقاف' : 'تفعيل'}</button>
                         <button class="btn-delete" onclick="deleteProduct('${p.id}')">حذف</button>
+                        ${isHeavy ? `<button class="btn-fix" onclick="fixImage('${p.id}')">📷 صلّح الصورة</button>` : ""}
                     </div>
                 </div>`;
         }).join("");
+    }
+
+    function fixImage(id) {
+        if (typeof cloudinary === "undefined") {
+            alert("مكتبة رفع الصور ما تحملت.");
+            return;
+        }
+        cloudinary.createUploadWidget({
+            cloudName: CLOUDINARY_CLOUD_NAME,
+            uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+            sources: ['local', 'camera'],
+            multiple: false,
+            language: 'ar'
+        }, (error, result) => {
+            if (!error && result && result.event === "success") {
+                db.ref(`products/${id}/image`).set(result.info.secure_url).then(() => {
+                    alert("تم تصليح الصورة ✅");
+                });
+            }
+        }).open();
     }
 
     function savePrice(id) {
