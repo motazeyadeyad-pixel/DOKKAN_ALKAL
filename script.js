@@ -713,16 +713,21 @@ function toggleFavorite(productId, btnEl) {
     const isFav = !!userFavorites[productId];
     const ref = db.ref(`users/${currentUser.uid}/favorites/${productId}`);
 
+    // تحديث فوري بالواجهة قبل ما ننتظر رد Firebase (بدون تعليق)
     if (isFav) {
-        ref.remove().then(() => {
-            delete userFavorites[productId];
-            if (btnEl) btnEl.textContent = "🤍";
-            if (currentCategory === 'المفضلة') displayProducts();
-        });
-    } else {
-        ref.set(true).then(() => {
+        delete userFavorites[productId];
+        if (btnEl) btnEl.textContent = "🤍";
+        if (currentCategory === 'المفضلة') displayProducts();
+        ref.remove().catch(() => {
             userFavorites[productId] = true;
             if (btnEl) btnEl.textContent = "❤️";
+        });
+    } else {
+        userFavorites[productId] = true;
+        if (btnEl) btnEl.textContent = "❤️";
+        ref.set(true).catch(() => {
+            delete userFavorites[productId];
+            if (btnEl) btnEl.textContent = "🤍";
         });
     }
 }
@@ -802,7 +807,7 @@ function getOrderData() {
         return null;
     }
 
-    const MIN_ORDER_TOTAL = 1; // الحد الأدنى للطلب بالدينار
+    const MIN_ORDER_TOTAL = 0.5; // الحد الأدنى للطلب بالدينار
     const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     if (cartSubtotal < MIN_ORDER_TOTAL) {
         alert(`الحد الأدنى للطلب ${MIN_ORDER_TOTAL} دينار. مجموع سلتك الحالي: ${cartSubtotal.toFixed(2)} دينار.`);
@@ -947,19 +952,29 @@ function closeTrackingModal() {
 
 function renderOrderStatusStepper(currentStatus, containerEl) {
     if (!containerEl) return;
-    const currentIndex = ORDER_STATUSES.indexOf(currentStatus);
+    const currentIndex = Math.max(0, ORDER_STATUSES.indexOf(currentStatus));
+    const percent = (currentIndex / (ORDER_STATUSES.length - 1)) * 100;
+    const isOutForDelivery = currentStatus === "خرج للتوصيل";
 
-    containerEl.innerHTML = ORDER_STATUSES.map((status, i) => {
+    const icons = ["📥", "📦", "🚚", "✅"];
+
+    const stepsHtml = ORDER_STATUSES.map((status, i) => {
         const state = i < currentIndex ? "done" : (i === currentIndex ? "active" : "pending");
-        const icon = state === "done" ? "✅" : (state === "active" ? "🟢" : "⚪");
-        const color = state === "pending" ? "#aaa" : "#222";
-        const weight = state === "active" ? "bold" : "normal";
         return `
-            <div style="display:flex; align-items:center; gap:10px; padding:8px 0; color:${color}; font-weight:${weight};">
-                <span style="font-size:18px;">${icon}</span>
-                <span>${status}</span>
+            <div class="timeline-step ${state}">
+                <div class="timeline-dot">${icons[i]}</div>
+                <div class="timeline-label">${status}</div>
             </div>`;
     }).join("");
+
+    containerEl.innerHTML = `
+        <div class="order-timeline">
+            <div class="timeline-track">
+                <div class="timeline-progress" style="width:${percent}%;"></div>
+                ${isOutForDelivery ? `<div class="timeline-truck" style="left:${percent}%;">🚴</div>` : ""}
+            </div>
+            <div class="timeline-steps">${stepsHtml}</div>
+        </div>`;
 }
 
 // دالة مساعدة (للاستخدام من لوحة تحكم الأدمن) لتغيير حالة الطلب

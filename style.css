@@ -773,6 +773,103 @@ nav a:hover {
     transform: translateY(0);
 }
 
+/* خط زمني متحرك لتتبع الطلب */
+.order-timeline {
+    padding: 10px 5px 5px;
+}
+
+.timeline-track {
+    position: relative;
+    height: 6px;
+    background: #eee;
+    border-radius: 10px;
+    margin: 10px 10px 25px;
+}
+
+.timeline-progress {
+    position: absolute;
+    top: 0; right: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #00b06b, #006b3c);
+    border-radius: 10px;
+    transition: width 0.6s ease;
+}
+
+.timeline-truck {
+    position: absolute;
+    top: -14px;
+    transform: translateX(50%);
+    font-size: 20px;
+    transition: left 0.6s ease;
+    animation: bounce-truck 1s infinite alternate;
+}
+
+@keyframes bounce-truck {
+    from { transform: translateX(50%) translateY(0); }
+    to { transform: translateX(50%) translateY(-4px); }
+}
+
+.timeline-steps {
+    display: flex;
+    justify-content: space-between;
+    text-align: center;
+}
+
+.timeline-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #999;
+}
+
+.timeline-dot {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.4s ease;
+}
+
+.timeline-step.done .timeline-dot {
+    background: #006b3c;
+    filter: grayscale(0);
+}
+
+.timeline-step.active .timeline-dot {
+    background: linear-gradient(135deg, #00b06b, #006b3c);
+    box-shadow: 0 0 0 6px rgba(0, 107, 60, 0.15);
+    animation: pulse-dot 1.2s infinite;
+}
+
+@keyframes pulse-dot {
+    0% { box-shadow: 0 0 0 4px rgba(0, 107, 60, 0.15); }
+    50% { box-shadow: 0 0 0 9px rgba(0, 107, 60, 0.08); }
+    100% { box-shadow: 0 0 0 4px rgba(0, 107, 60, 0.15); }
+}
+
+.timeline-step.done .timeline-label,
+.timeline-step.active .timeline-label {
+    color: #006b3c;
+    font-weight: bold;
+}
+
+/* دخول خفيف لبطاقات المنتجات */
+.product-card {
+    animation: card-fade-in 0.35s ease both;
+}
+
+@keyframes card-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* الفوتر */
 footer {
     background: linear-gradient(135deg, #006b3c, #004d2a);

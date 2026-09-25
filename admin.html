@@ -1,230 +1,216 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم دكان الخال</title>
-    <style>
-        body { font-family: sans-serif; background: #f4f6f8; margin: 0; padding: 20px; direction: rtl; }
-        .admin-card { background: white; max-width: 600px; margin: 0 auto 20px auto; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h2 { color: #006b3c; margin-top: 0; text-align: center; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
-        .btn-add { background: #006b3c; color: white; border: none; padding: 12px; width: 100%; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; }
-        .btn-add:hover { background: #00522e; }
-        .btn-camera { background: #0284c7; color: white; border: none; padding: 10px; width: 100%; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-bottom: 8px; }
-        .btn-camera:hover { background: #0369a1; }
-        .product-item { background: white; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd; }
-        .product-info { font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
-        .category-badge { background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 5px; }
-        .actions { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
-        .actions button, .actions select, .actions input { padding: 6px 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 13px; font-weight: bold; box-sizing: border-box; }
-        .btn-toggle { background: #f59e0b; color: white; border: none !important; cursor: pointer; }
-        .btn-delete { background: #ef4444; color: white; border: none !important; cursor: pointer; }
-        .btn-save { background: #10b981; color: white; border: none !important; cursor: pointer; }
-        .preview-img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; margin-top: 8px; display: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تحكم دكان الخال</title>
+<style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 15px; direction: rtl; }
+    .admin-card { background: white; max-width: 600px; margin: 0 auto 18px auto; padding: 20px; border-radius: 14px; box-shadow: 0 3px 15px rgba(0,0,0,0.08); }
+    h2 { color: #006b3c; margin-top: 0; text-align: center; }
+    .form-group { margin-bottom: 14px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+    input, select { width: 100%; padding: 11px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
+    .btn-add { background: linear-gradient(135deg,#00b06b,#006b3c); color: white; border: none; padding: 13px; width: 100%; font-size: 16px; font-weight: bold; border-radius: 10px; cursor: pointer; }
+    .btn-upload { background: #0284c7; color: white; border: none; padding: 11px; width: 100%; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-bottom: 6px; }
+    .preview-img { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: none; }
+    .search-box { max-width: 600px; margin: 0 auto 12px; }
+    .search-box input { padding: 12px; border-radius: 10px; }
+    .product-item { background: white; padding: 12px; margin-bottom: 12px; border-radius: 12px; border: 1px solid #eee; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .product-item img { width: 55px; height: 55px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+    .product-main { flex: 1; min-width: 150px; }
+    .category-badge { background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+    .status-badge { font-size: 12px; font-weight: bold; }
+    .status-on { color: #16a34a; }
+    .status-off { color: #dc2626; }
+    .actions { display: flex; gap: 5px; flex-wrap: wrap; width: 100%; margin-top: 8px; }
+    .actions input, .actions select { width: auto; padding: 6px 8px; font-size: 13px; }
+    .actions button { padding: 7px 12px; border: none; border-radius: 7px; font-size: 13px; font-weight: bold; cursor: pointer; }
+    .btn-toggle { background: #f59e0b; color: white; }
+    .btn-delete { background: #ef4444; color: white; }
+    .btn-save { background: #10b981; color: white; }
+    #orders-list { max-width: 600px; margin: 0 auto; }
+    .empty { text-align: center; color: #888; padding: 30px; }
+</style>
 </head>
 <body>
 
-    <div class="admin-card">
-        <h2>إضافة منتج جديد</h2>
-        <input type="hidden" id="p-image-base64">
-        
-        <div class="form-group">
-            <label>اسم المنتج</label>
-            <input type="text" id="p-name" placeholder="مثال: حلاوة سكاكر">
-        </div>
+<div class="admin-card">
+    <h2>➕ إضافة منتج جديد</h2>
+    <input type="hidden" id="p-image-url">
 
-        <div class="form-group">
-            <label>السعر (بالدينار)</label>
-            <input type="number" step="0.05" id="p-price" placeholder="مثال: 0.25">
-        </div>
-
-        <div class="form-group">
-            <label>القسم</label>
-            <select id="p-category">
-                <option value="مواد غذائية">🥫 مواد غذائية</option>
-                <option value="سكاكر">🍬 سكاكر وحلويات</option>
-                <option value="مشروبات">🥤 مشروبات</option>
-                <option value="منظفات">🧴 منظفات</option>
-                <option value="مستلزمات شخصية">🧼 مستلزمات شخصية</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>صورة المنتج</label>
-            <input type="file" id="camera-file" accept="image/*" capture="environment" style="display: none;" onchange="previewCameraFile(event)">
-            <button type="button" class="btn-camera" onclick="document.getElementById('camera-file').click()">
-                📸 التقط صورة من الكاميرا
-            </button>
-            <input type="file" id="p-file" accept="image/*" onchange="previewFile()">
-            <img id="image-preview" class="preview-img" alt="معاينة الصورة">
-        </div>
-
-        <button class="btn-add" onclick="addProductToFirebase()">حفظ المنتج وإضافته للدكان</button>
+    <div class="form-group">
+        <label>اسم المنتج</label>
+        <input type="text" id="p-name" placeholder="مثال: حلاوة سكاكر">
     </div>
 
-    <div class="admin-card">
-        <h2>قائمة المنتجات السحابية</h2>
-        <div id="admin-products-list">جاري تحميل المنتجات...</div>
+    <div class="form-group">
+        <label>السعر (بالدينار)</label>
+        <input type="number" step="0.05" id="p-price" placeholder="مثال: 0.25">
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+    <div class="form-group">
+        <label>القسم</label>
+        <select id="p-category">
+            <option value="مواد غذائية">🥫 مواد غذائية</option>
+            <option value="سكاكر">🍬 سكاكر وحلويات</option>
+            <option value="مشروبات">🥤 مشروبات</option>
+            <option value="منظفات">🧴 منظفات</option>
+            <option value="مستلزمات شخصية">🧼 مستلزمات شخصية</option>
+        </select>
+    </div>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCijhMKaJTyfL8p76-31GbfzCpLF2bui1A",
-            authDomain: "motaz-f6c67.firebaseapp.com",
-            databaseURL: "https://motaz-f6c67-default-rtdb.firebaseio.com",
-            projectId: "motaz-f6c67",
-            storageBucket: "motaz-f6c67.firebasestorage.app",
-            messagingSenderId: "553305284670",
-            appId: "1:553305284670:web:4fdf78e304fd7aaa34b16f"
-        };
+    <div class="form-group">
+        <label>صورة المنتج</label>
+        <button type="button" class="btn-upload" onclick="uploadImage()">📷 رفع / التقاط صورة</button>
+        <img id="image-preview" class="preview-img" alt="معاينة">
+    </div>
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+    <button class="btn-add" onclick="addProduct()">حفظ المنتج</button>
+</div>
 
-        window.previewFile = function() {
-            const fileInput = document.getElementById("p-file");
-            processImageFile(fileInput.files[0]);
+<div class="admin-card">
+    <h2>📦 المنتجات الحالية</h2>
+    <div class="search-box">
+        <input type="text" id="admin-search" placeholder="🔍 دور على منتج..." oninput="renderProductsList()">
+    </div>
+    <div id="admin-products-list">جاري التحميل...</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyCijhMKaJTyfL8p76-31GbfzCpLF2bui1A",
+        authDomain: "motaz-f6c67.firebaseapp.com",
+        databaseURL: "https://motaz-f6c67-default-rtdb.firebaseio.com",
+        projectId: "motaz-f6c67",
+        storageBucket: "motaz-f6c67.firebasestorage.app",
+        messagingSenderId: "553305284670",
+        appId: "1:553305284670:web:4fdf78e304fd7aaa34b16f"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // نفس إعدادات Cloudinary تبع الموقع الرئيسي — الصورة بترفع كرابط خفيف
+    // بدل ما تترفع كنص ضخم جوا قاعدة البيانات (هاد كان سبب تعليق الموقع)
+    const CLOUDINARY_CLOUD_NAME = "gfyyessl";
+    const CLOUDINARY_UPLOAD_PRESET = "dokan_preset";
+
+    let allProducts = [];
+
+    function uploadImage() {
+        if (typeof cloudinary === "undefined") {
+            alert("مكتبة رفع الصور ما تحملت، تأكد من الإنترنت وحاول تاني.");
+            return;
         }
-
-        window.previewCameraFile = function(event) {
-            processImageFile(event.target.files[0]);
-        }
-
-        function processImageFile(file) {
-            const preview = document.getElementById("image-preview");
-            const hiddenBase64 = document.getElementById("p-image-base64");
-
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.style.display = "block";
-                    hiddenBase64.value = e.target.result;
-                };
-                reader.readAsDataURL(file);
+        cloudinary.createUploadWidget({
+            cloudName: CLOUDINARY_CLOUD_NAME,
+            uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+            sources: ['local', 'camera'],
+            multiple: false,
+            language: 'ar'
+        }, (error, result) => {
+            if (!error && result && result.event === "success") {
+                document.getElementById("p-image-url").value = result.info.secure_url;
+                const preview = document.getElementById("image-preview");
+                preview.src = result.info.secure_url;
+                preview.style.display = "block";
             }
+        }).open();
+    }
+
+    function addProduct() {
+        const name = document.getElementById("p-name").value.trim();
+        const price = parseFloat(document.getElementById("p-price").value);
+        const category = document.getElementById("p-category").value;
+        const image = document.getElementById("p-image-url").value;
+
+        if (!name || isNaN(price)) {
+            alert("أدخل اسم وسعر صحيحين.");
+            return;
         }
 
-        window.addProductToFirebase = function() {
-            const name = document.getElementById("p-name").value.trim();
-            const price = parseFloat(document.getElementById("p-price").value);
-            const category = document.getElementById("p-category").value;
-            const imageBase64 = document.getElementById("p-image-base64").value;
+        db.ref("products").push({
+            name, price, category,
+            image: image || "",
+            available: true
+        }).then(() => {
+            alert("تمت الإضافة ✅");
+            resetForm();
+        }).catch(err => alert("خطأ: " + err.message));
+    }
 
-            if (!name || isNaN(price)) {
-                alert("يرجى إدخال اسم المنتج والسعر بشكل صحيح.");
-                return;
-            }
+    function resetForm() {
+        document.getElementById("p-name").value = "";
+        document.getElementById("p-price").value = "";
+        document.getElementById("p-image-url").value = "";
+        document.getElementById("image-preview").style.display = "none";
+    }
 
-            const productsRef = ref(db, 'products');
-            push(productsRef, {
-                name: name,
-                price: price,
-                category: category,
-                image: imageBase64 || "",
-                available: true
-            }).then(() => {
-                alert("تم إضافة المنتج بنجاح إلى دكان الخال!");
-                resetForm();
-            }).catch((error) => {
-                alert("حدث خطأ: " + error.message);
-            });
+    // تحميل مباشر ولحظي لكل المنتجات (خفيف جداً الآن لأن الصور روابط لا نصوص ضخمة)
+    db.ref("products").on("value", (snap) => {
+        const data = snap.val() || {};
+        allProducts = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        renderProductsList();
+    });
+
+    function renderProductsList() {
+        const list = document.getElementById("admin-products-list");
+        const query = (document.getElementById("admin-search").value || "").trim().toLowerCase();
+
+        let items = allProducts;
+        if (query) items = items.filter(p => (p.name || "").toLowerCase().includes(query));
+
+        if (items.length === 0) {
+            list.innerHTML = "<p class='empty'>لا توجد منتجات.</p>";
+            return;
         }
 
-        const productsRef = ref(db, 'products');
-        onValue(productsRef, (snapshot) => {
-            const list = document.getElementById("admin-products-list");
-            list.innerHTML = "";
-            
-            const data = snapshot.val();
-            if (!data) {
-                list.innerHTML = "<p style='text-align:center;'>لا توجد منتجات مضافة بعد.</p>";
-                return;
-            }
-
-            Object.keys(data).forEach((key) => {
-                const p = data[key];
-                const item = document.createElement("div");
-                item.className = "product-item";
-                
-                const imgSrc = p.image || "https://via.placeholder.com/50?text=بدون+صورة";
-
-                item.innerHTML = `
-                    <div class="product-info">
-                        <img src="${imgSrc}" style="width:50px; height:50px; object-fit:cover; border-radius:6px;" onerror="this.src='https://via.placeholder.com/50?text=خطأ'">
-                        <div>
-                            <strong>${p.name}</strong><br>
-                            <span class="category-badge">${p.category || 'عام'}</span>
-                            <small>الحالة: ${p.available !== false ? '✅ متوفر' : '❌ غير متوفر'}</small>
-                        </div>
+        list.innerHTML = items.map(p => {
+            const imgSrc = p.image || "https://via.placeholder.com/55?text=%20";
+            const isAvailable = p.available !== false;
+            return `
+                <div class="product-item">
+                    <img src="${imgSrc}" onerror="this.src='https://via.placeholder.com/55?text=%20'">
+                    <div class="product-main">
+                        <strong>${escapeHTML(p.name)}</strong>
+                        <span class="category-badge">${escapeHTML(p.category || 'عام')}</span><br>
+                        <span class="status-badge ${isAvailable ? 'status-on' : 'status-off'}">${isAvailable ? '✅ متوفر' : '⛔ غير متوفر'}</span>
                     </div>
                     <div class="actions">
-                        <input type="number" step="0.05" id="price-${key}" value="${p.price}" style="width: 80px;" placeholder="السعر">
-                        <select id="cat-${key}" style="width: 130px;">
-                            <option value="مواد غذائية" ${p.category === 'مواد غذائية' ? 'selected' : ''}>🥫 مواد غذائية</option>
-                            <option value="سكاكر" ${p.category === 'سكاكر' ? 'selected' : ''}>🍬 سكاكر</option>
-                            <option value="مشروبات" ${p.category === 'مشروبات' ? 'selected' : ''}>🥤 مشروبات</option>
-                            <option value="منظفات" ${p.category === 'منظفات' ? 'selected' : ''}>🧴 منظفات</option>
-                            <option value="مستلزمات شخصية" ${p.category === 'مستلزمات شخصية' ? 'selected' : ''}>🧼 مستلزمات</option>
-                        </select>
-                        <button class="btn-save" onclick="updateProduct('${key}')">حفظ التعديل</button>
-                        <button class="btn-toggle" onclick="toggleStatus('${key}', ${p.available})">
-                            ${p.available !== false ? 'إيقاف' : 'تفعيل'}
-                        </button>
-                        <button class="btn-delete" onclick="deleteProduct('${key}')">حذف</button>
+                        <input type="number" step="0.05" id="price-${p.id}" value="${p.price}" style="width:75px;">
+                        <button class="btn-save" onclick="savePrice('${p.id}')">حفظ السعر</button>
+                        <button class="btn-toggle" onclick="toggleAvailable('${p.id}', ${isAvailable})">${isAvailable ? 'إيقاف' : 'تفعيل'}</button>
+                        <button class="btn-delete" onclick="deleteProduct('${p.id}')">حذف</button>
                     </div>
-                `;
-                list.appendChild(item);
-            });
-        });
+                </div>`;
+        }).join("");
+    }
 
-        window.updateProduct = function(key) {
-            const newPrice = parseFloat(document.getElementById(`price-${key}`).value);
-            const newCategory = document.getElementById(`cat-${key}`).value;
+    function savePrice(id) {
+        const newPrice = parseFloat(document.getElementById(`price-${id}`).value);
+        if (isNaN(newPrice)) { alert("سعر غير صحيح."); return; }
+        db.ref(`products/${id}/price`).set(newPrice);
+    }
 
-            if (isNaN(newPrice)) {
-                alert("يرجى إدخال سعر صحيح.");
-                return;
-            }
+    function toggleAvailable(id, current) {
+        db.ref(`products/${id}/available`).set(!current);
+    }
 
-            const productRef = ref(db, 'products/' + key);
-            update(productRef, {
-                price: newPrice,
-                category: newCategory
-            }).then(() => {
-                alert("تم تحديث المنتج بنجاح!");
-            }).catch((error) => {
-                alert("خطأ في التحديث: " + error.message);
-            });
+    function deleteProduct(id) {
+        if (confirm("متأكد من الحذف نهائياً؟")) {
+            db.ref(`products/${id}`).remove();
         }
+    }
 
-        window.toggleStatus = function(key, currentStatus) {
-            const productRef = ref(db, 'products/' + key);
-            update(productRef, { available: currentStatus === false ? true : false });
-        }
-
-        window.deleteProduct = function(key) {
-            if (confirm("هل أنتِ متأكدة من حذف هذا المنتج؟")) {
-                const productRef = ref(db, 'products/' + key);
-                remove(productRef);
-            }
-        }
-
-        function resetForm() {
-            document.getElementById("p-name").value = "";
-            document.getElementById("p-price").value = "";
-            document.getElementById("p-file").value = "";
-            document.getElementById("camera-file").value = "";
-            document.getElementById("p-image-base64").value = "";
-            document.getElementById("image-preview").style.display = "none";
-        }
-    </script>
+    function escapeHTML(str) {
+        return String(str ?? "").replace(/[&<>"']/g, c => ({
+            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        }[c]));
+    }
+</script>
 </body>
 </html>
