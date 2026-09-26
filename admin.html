@@ -32,6 +32,7 @@
     .btn-save { background: #10b981; color: white; }
     .btn-fix { background: #7c3aed; color: white; }
     .heavy-badge { font-size: 11px; color: #b45309; font-weight: bold; }
+    .img-status { font-size: 11px; color: #16a34a; font-weight: bold; }
     .btn-bulk { background: #7c3aed; color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 14px; cursor: pointer; margin-bottom: 8px; }
     .btn-bulk:disabled { opacity: 0.6; cursor: not-allowed; }
     .bulk-hint { font-size: 12px; color: #777; margin-bottom: 8px; }
@@ -70,7 +71,9 @@
 
     <div class="form-group">
         <label>صورة المنتج</label>
-        <button type="button" class="btn-upload" onclick="uploadImage()">📷 رفع / التقاط صورة</button>
+        <button type="button" class="btn-upload" onclick="document.getElementById('p-file-input').click()">📷 اختر صورة من الجهاز</button>
+        <input type="file" id="p-file-input" accept="image/*" style="display:none" onchange="handleNewProductFile(event)">
+        <span id="p-upload-status" style="font-size:12px; color:#666;"></span>
         <img id="image-preview" class="preview-img" alt="معاينة">
     </div>
 
@@ -105,7 +108,6 @@
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-<script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyCijhMKaJTyfL8p76-31GbfzCpLF2bui1A",
@@ -125,27 +127,6 @@
     const CLOUDINARY_UPLOAD_PRESET = "dokan_preset";
 
     let allProducts = [];
-
-    function uploadImage() {
-        if (typeof cloudinary === "undefined") {
-            alert("مكتبة رفع الصور ما تحملت، تأكد من الإنترنت وحاول تاني.");
-            return;
-        }
-        cloudinary.createUploadWidget({
-            cloudName: CLOUDINARY_CLOUD_NAME,
-            uploadPreset: CLOUDINARY_UPLOAD_PRESET,
-            sources: ['local', 'camera'],
-            multiple: false,
-            language: 'ar'
-        }, (error, result) => {
-            if (!error && result && result.event === "success") {
-                document.getElementById("p-image-url").value = result.info.secure_url;
-                const preview = document.getElementById("image-preview");
-                preview.src = result.info.secure_url;
-                preview.style.display = "block";
-            }
-        }).open();
-    }
 
     function addProduct() {
         const name = document.getElementById("p-name").value.trim();
@@ -189,22 +170,25 @@
         const existingNames = new Set(allProducts.map(p => normalizeName(p.name)));
         const lines = rawText.split("\n").map(l => l.trim()).filter(Boolean);
 
-        let added = 0, skippedDuplicate = 0, skippedInvalid = 0;
+        let added = 0;
+        const duplicateLines = [];
+        const invalidLines = [];
         const updates = {};
 
-        lines.forEach(line => {
+        lines.forEach((line, idx) => {
+            const lineNum = idx + 1;
             const parts = line.split("،").length > 1 ? line.split("،") : line.split(",");
             const name = (parts[0] || "").trim();
             const price = parseFloat((parts[1] || "").trim());
             const category = (parts[2] || "").trim() || defaultCategory;
 
             if (!name || isNaN(price)) {
-                skippedInvalid++;
+                invalidLines.push(lineNum);
                 return;
             }
 
             if (existingNames.has(normalizeName(name))) {
-                skippedDuplicate++;
+                duplicateLines.push(lineNum);
                 return;
             }
 
@@ -218,9 +202,10 @@
             db.ref("products").update(updates);
         }
 
-        resultEl.innerHTML = `✅ انضاف ${added} منتج` +
-            (skippedDuplicate ? ` — ⏭️ اتخطى ${skippedDuplicate} (مسجل مسبقاً)` : "") +
-            (skippedInvalid ? ` — ⚠️ ${skippedInvalid} سطر ما انفهم` : "");
+        let resultHtml = `✅ انضاف ${added} منتج`;
+        if (duplicateLines.length) resultHtml += `<br>⏭️ مكرر (مسجل مسبقاً) — سطر رقم: ${duplicateLines.join("، ")}`;
+        if (invalidLines.length) resultHtml += `<br>⚠️ ما انفهم — سطر رقم: ${invalidLines.join("، ")}`;
+        resultEl.innerHTML = resultHtml;
 
         if (added > 0) document.getElementById("bulk-text").value = "";
     }
@@ -260,36 +245,65 @@
                         <span class="category-badge">${escapeHTML(p.category || 'عام')}</span><br>
                         <span class="status-badge ${isAvailable ? 'status-on' : 'status-off'}">${isAvailable ? '✅ متوفر' : '⛔ غير متوفر'}</span>
                         ${isHeavy ? `<br><span class="heavy-badge">⚠️ صورة ثقيلة — بتبطّئ الموقع</span>` : ""}
+                        <span id="img-status-${p.id}" class="img-status"></span>
                     </div>
                     <div class="actions">
                         <input type="number" step="0.05" id="price-${p.id}" value="${p.price}" style="width:75px;">
                         <button class="btn-save" onclick="savePrice('${p.id}')">حفظ السعر</button>
                         <button class="btn-toggle" onclick="toggleAvailable('${p.id}', ${isAvailable})">${isAvailable ? 'إيقاف' : 'تفعيل'}</button>
                         <button class="btn-delete" onclick="deleteProduct('${p.id}')">حذف</button>
-                        ${isHeavy ? `<button class="btn-fix" onclick="fixImage('${p.id}')">📷 صلّح الصورة</button>` : ""}
+                        <button class="btn-fix" onclick="document.getElementById('file-${p.id}').click()">📷 اختر صورة</button>
+                        <input type="file" id="file-${p.id}" accept="image/*" style="display:none" onchange="handleProductImageFile(event,'${p.id}')">
                     </div>
                 </div>`;
         }).join("");
     }
 
-    function fixImage(id) {
-        if (typeof cloudinary === "undefined") {
-            alert("مكتبة رفع الصور ما تحملت.");
-            return;
-        }
-        cloudinary.createUploadWidget({
-            cloudName: CLOUDINARY_CLOUD_NAME,
-            uploadPreset: CLOUDINARY_UPLOAD_PRESET,
-            sources: ['local', 'camera'],
-            multiple: false,
-            language: 'ar'
-        }, (error, result) => {
-            if (!error && result && result.event === "success") {
-                db.ref(`products/${id}/image`).set(result.info.secure_url).then(() => {
-                    alert("تم تصليح الصورة ✅");
-                });
-            }
-        }).open();
+    // يرفع أي ملف صورة مباشرة لـ Cloudinary بدون فتح أي نافذة أو خطوات إضافية
+    function uploadFileToCloudinary(file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+        return fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+            method: "POST",
+            body: formData
+        }).then(res => res.json()).then(data => {
+            if (!data.secure_url) throw new Error(data.error?.message || "فشل الرفع");
+            return data.secure_url;
+        });
+    }
+
+    function handleNewProductFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const status = document.getElementById("p-upload-status");
+        status.textContent = "⏳ جاري الرفع...";
+        uploadFileToCloudinary(file).then(url => {
+            document.getElementById("p-image-url").value = url;
+            document.getElementById("image-preview").src = url;
+            document.getElementById("image-preview").style.display = "block";
+            status.textContent = "✅ تم رفع الصورة";
+        }).catch(err => {
+            status.textContent = "❌ فشل الرفع";
+            alert("خطأ: " + err.message);
+        });
+    }
+
+    function handleProductImageFile(event, id) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById(`img-status-${id}`);
+        if (statusEl) statusEl.textContent = " ⏳ جاري الحفظ...";
+
+        uploadFileToCloudinary(file).then(url => {
+            return db.ref(`products/${id}/image`).set(url);
+        }).then(() => {
+            if (statusEl) statusEl.textContent = " ✅ انحفظت";
+        }).catch(err => {
+            if (statusEl) statusEl.textContent = " ❌ فشل";
+            alert("خطأ: " + err.message);
+        });
     }
 
     // يرفع الصورة (base64) مباشرة لـ Cloudinary عن طريق fetch بدون فتح أي نافذة
