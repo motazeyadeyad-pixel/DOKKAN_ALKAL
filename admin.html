@@ -34,6 +34,9 @@
     .heavy-badge { font-size: 11px; color: #b45309; font-weight: bold; }
     .btn-bulk { background: #7c3aed; color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 14px; cursor: pointer; margin-bottom: 8px; }
     .btn-bulk:disabled { opacity: 0.6; cursor: not-allowed; }
+    .bulk-hint { font-size: 12px; color: #777; margin-bottom: 8px; }
+    #bulk-text { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; font-family: Arial, sans-serif; resize: vertical; }
+    .btn-bulk-add { background: linear-gradient(135deg,#f59e0b,#d97706); color: white; border: none; padding: 12px; width: 100%; font-size: 15px; font-weight: bold; border-radius: 10px; cursor: pointer; margin-top: 10px; }
     #orders-list { max-width: 600px; margin: 0 auto; }
     .empty { text-align: center; color: #888; padding: 30px; }
 </style>
@@ -75,11 +78,27 @@
 </div>
 
 <div class="admin-card">
+    <h2>🧾 إضافة دفعة من فاتورة</h2>
+    <p class="bulk-hint">كل سطر منتج: <b>الاسم، السعر</b> (فاصلة بينهم). القسم اختياري بعد فاصلة ثانية.</p>
+    <textarea id="bulk-text" rows="6" placeholder="مثال:&#10;شيبس ليز، 0.35&#10;بيبسي علبة، 0.45، مشروبات"></textarea>
+    <select id="bulk-default-category" style="margin-top:8px;">
+        <option value="مواد غذائية">🥫 مواد غذائية (افتراضي إذا ما تحدد قسم)</option>
+        <option value="سكاكر">🍬 سكاكر وحلويات</option>
+        <option value="مشروبات">🥤 مشروبات</option>
+        <option value="منظفات">🧴 منظفات</option>
+        <option value="مستلزمات شخصية">🧼 مستلزمات شخصية</option>
+    </select>
+    <button class="btn-bulk-add" onclick="bulkAddProducts()">➕ إضافة كل هذول المنتجات</button>
+    <div id="bulk-add-result" style="font-size:13px; margin-top:8px; color:#555;"></div>
+</div>
+
+<div class="admin-card">
     <h2>📦 المنتجات الحالية</h2>
     <div class="search-box">
         <button type="button" id="bulk-fix-btn" class="btn-bulk" onclick="fixAllHeavyImages()">🔄 صلّح كل الصور الثقيلة تلقائياً</button>
         <div id="bulk-progress" style="display:none; font-size:13px; text-align:center; margin-top:6px; color:#555;"></div>
         <input type="text" id="admin-search" placeholder="🔍 دور على منتج..." oninput="renderProductsList()">
+
     </div>
     <div id="admin-products-list">جاري التحميل...</div>
 </div>
@@ -154,6 +173,60 @@
         document.getElementById("p-price").value = "";
         document.getElementById("p-image-url").value = "";
         document.getElementById("image-preview").style.display = "none";
+    }
+
+    // إضافة دفعة منتجات دفعة وحدة من نص (فاتورة)، مع تخطي أي منتج مسجل مسبقاً بنفس الاسم
+    function bulkAddProducts() {
+        const rawText = document.getElementById("bulk-text").value.trim();
+        const defaultCategory = document.getElementById("bulk-default-category").value;
+        const resultEl = document.getElementById("bulk-add-result");
+
+        if (!rawText) {
+            alert("حط منتج وحد على الأقل.");
+            return;
+        }
+
+        const existingNames = new Set(allProducts.map(p => normalizeName(p.name)));
+        const lines = rawText.split("\n").map(l => l.trim()).filter(Boolean);
+
+        let added = 0, skippedDuplicate = 0, skippedInvalid = 0;
+        const updates = {};
+
+        lines.forEach(line => {
+            const parts = line.split("،").length > 1 ? line.split("،") : line.split(",");
+            const name = (parts[0] || "").trim();
+            const price = parseFloat((parts[1] || "").trim());
+            const category = (parts[2] || "").trim() || defaultCategory;
+
+            if (!name || isNaN(price)) {
+                skippedInvalid++;
+                return;
+            }
+
+            if (existingNames.has(normalizeName(name))) {
+                skippedDuplicate++;
+                return;
+            }
+
+            const newKey = db.ref("products").push().key;
+            updates[newKey] = { name, price, category, image: "", available: true };
+            existingNames.add(normalizeName(name)); // يمنع تكرار نفس الاسم مرتين بنفس اللصقة
+            added++;
+        });
+
+        if (added > 0) {
+            db.ref("products").update(updates);
+        }
+
+        resultEl.innerHTML = `✅ انضاف ${added} منتج` +
+            (skippedDuplicate ? ` — ⏭️ اتخطى ${skippedDuplicate} (مسجل مسبقاً)` : "") +
+            (skippedInvalid ? ` — ⚠️ ${skippedInvalid} سطر ما انفهم` : "");
+
+        if (added > 0) document.getElementById("bulk-text").value = "";
+    }
+
+    function normalizeName(str) {
+        return String(str || "").trim().toLowerCase().replace(/\s+/g, " ");
     }
 
     // تحميل مباشر ولحظي لكل المنتجات (خفيف جداً الآن لأن الصور روابط لا نصوص ضخمة)
