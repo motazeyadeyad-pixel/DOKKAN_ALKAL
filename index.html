@@ -8,6 +8,15 @@
 </head>
 <body>
 
+    <!-- شاشة الترحيب (تظهر أول ما يفتح الموقع) -->
+    <div id="splash-screen">
+        <div class="splash-logo">🛒</div>
+        <div class="splash-greeting">أهلاً وسهلاً بك في</div>
+        <div class="splash-brand">دكان الخال</div>
+        <div class="splash-subtitle">منتجات متنوعة - أسعار مناسبة - خدمة سريعة</div>
+        <div class="splash-progress"><div class="splash-progress-bar"></div></div>
+    </div>
+
     <!-- القائمة العلوية -->
     <header>
         <div class="logo">
@@ -46,8 +55,8 @@
 
     <!-- الأقسام -->
     <section id="categories" class="categories">
-        <h2>الأقسام</h2>
-        <div class="category-container">
+        <h2 class="reveal">الأقسام</h2>
+        <div class="category-container reveal-stagger">
             <button class="active" onclick="filterByCategory('الكل', this)">🛒 الكل</button>
             <button onclick="filterByCategory('مواد غذائية', this)">🥫 مواد غذائية</button>
             <button onclick="filterByCategory('سكاكر', this)">🍬 سكاكر وحلويات</button>
@@ -60,10 +69,10 @@
 
     <!-- المنتجات وشريط البحث -->
     <section id="products" class="products-section">
-        <h2>منتجاتنا</h2>
+        <h2 class="reveal">منتجاتنا</h2>
 
         <!-- شريط البحث المباشر -->
-        <div class="search-box" style="max-width: 500px; margin: 0 auto 25px auto; display: flex; gap: 8px; padding: 0 10px;">
+        <div class="search-box reveal" style="max-width: 500px; margin: 0 auto 25px auto; display: flex; gap: 8px; padding: 0 10px;">
             <input 
                 type="text" 
                 id="search-input" 
@@ -257,7 +266,7 @@
         <h3>دكان الخال</h3>
         <p>كل ما تحتاجه في مكان واحد</p>
 
-        <div class="store-rating-box">
+        <div class="store-rating-box reveal">
             <p>قيّم تجربتك معنا</p>
             <div id="store-rating-stars" class="store-rating-stars">☆☆☆☆☆</div>
             <div id="store-rating-text" class="store-rating-text">لا يوجد تقييم بعد</div>
@@ -278,6 +287,63 @@
 
     <!-- ملف السكربت الخاص بالموقع -->
     <script src="script.js"></script>
+
+    <!-- سكربت شاشة الترحيب: يظهر الموقع بحركة بعد 3 ثواني عشان الزبون يقرأ اسم الدكان -->
+    <script>
+        (function () {
+            var MIN_SPLASH_TIME = 3000; // مدة ظهور شاشة الترحيب بالميلي ثانية (لازم تطابق CSS)
+            var startTime = Date.now();
+
+            function revealSite() {
+                var splash = document.getElementById("splash-screen");
+                document.body.classList.add("revealed");
+                if (splash) {
+                    splash.classList.add("hide");
+                    setTimeout(function () {
+                        splash.style.display = "none";
+                    }, 700);
+                }
+            }
+
+            function onReady() {
+                var elapsed = Date.now() - startTime;
+                var remaining = Math.max(MIN_SPLASH_TIME - elapsed, 0);
+                setTimeout(revealSite, remaining);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", onReady);
+            } else {
+                onReady();
+            }
+
+            // شبكة أمان: لا نخلي الزبون عالق وراء شاشة الترحيب لأي سبب
+            setTimeout(revealSite, 6000);
+        })();
+    </script>
+
+    <!-- سكربت حركة ظهور الأقسام عند التمرير إليها -->
+    <script>
+        (function () {
+            var revealEls = document.querySelectorAll(".reveal, .reveal-stagger");
+
+            if (!("IntersectionObserver" in window)) {
+                revealEls.forEach(function (el) { el.classList.add("in-view"); });
+                return;
+            }
+
+            var observer = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add("in-view");
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.15 });
+
+            revealEls.forEach(function (el) { observer.observe(el); });
+        })();
+    </script>
 
     <!-- سكربت بسيط لتبديل تبويبات مودال تسجيل الدخول وزر الحساب -->
     <script>
