@@ -19,6 +19,8 @@
     .search-box input { padding: 12px; border-radius: 10px; }
     .product-item { background: white; padding: 12px; margin-bottom: 12px; border-radius: 12px; border: 1px solid #eee; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .product-item img { width: 55px; height: 55px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+    .dropzone { width: 70px; height: 55px; border: 2px dashed #999; border-radius: 8px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 10px; color: #777; flex-shrink: 0; cursor: pointer; transition: all 0.15s ease; padding: 2px; }
+    .dropzone.drag-over { border-color: #006b3c; background: #eafff2; color: #006b3c; font-weight: bold; }
     .product-main { flex: 1; min-width: 150px; }
     .category-badge { background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
     .status-badge { font-size: 12px; font-weight: bold; }
@@ -121,6 +123,10 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // يمنع المتصفح من فتح الصورة بصفحة جديدة إذا صار الإفلات خارج الصندوق المخصص
+    window.addEventListener("dragover", (e) => e.preventDefault());
+    window.addEventListener("drop", (e) => e.preventDefault());
+
     // نفس إعدادات Cloudinary تبع الموقع الرئيسي — الصورة بترفع كرابط خفيف
     // بدل ما تترفع كنص ضخم جوا قاعدة البيانات (هاد كان سبب تعليق الموقع)
     const CLOUDINARY_CLOUD_NAME = "gfyyessl";
@@ -156,7 +162,6 @@
         document.getElementById("image-preview").style.display = "none";
     }
 
-    // إضافة دفعة منتجات دفعة وحدة من نص (فاتورة)، مع تخطي أي منتج مسجل مسبقاً بنفس الاسم
     function bulkAddProducts() {
         const rawText = document.getElementById("bulk-text").value.trim();
         const defaultCategory = document.getElementById("bulk-default-category").value;
@@ -194,7 +199,7 @@
 
             const newKey = db.ref("products").push().key;
             updates[newKey] = { name, price, category, image: "", available: true };
-            existingNames.add(normalizeName(name)); // يمنع تكرار نفس الاسم مرتين بنفس اللصقة
+            existingNames.add(normalizeName(name));
             added++;
         });
 
@@ -214,7 +219,6 @@
         return String(str || "").trim().toLowerCase().replace(/\s+/g, " ");
     }
 
-    // تحميل مباشر ولحظي لكل المنتجات (خفيف جداً الآن لأن الصور روابط لا نصوص ضخمة)
     db.ref("products").on("value", (snap) => {
         const data = snap.val() || {};
         allProducts = Object.keys(data).map(key => ({ id: key, ...data[key] }));
@@ -240,138 +244,16 @@
             return `
                 <div class="product-item">
                     <img src="${imgSrc}" onerror="this.src='https://via.placeholder.com/55?text=%20'">
+                    <div class="dropzone" id="drop-${p.id}"
+                         ondragenter="event.preventDefault(); event.stopPropagation();"
+                         ondragover="event.preventDefault(); event.stopPropagation(); this.classList.add('drag-over')"
+                         ondragleave="this.classList.remove('drag-over')"
+                         ondrop="handleProductImageDrop(event,'${p.id}')"
+                         onclick="document.getElementById('file-${p.id}').click()">
+                        📥 اسحب الصورة هنا
+                    </div>
                     <div class="product-main">
                         <strong>${escapeHTML(p.name)}</strong>
                         <span class="category-badge">${escapeHTML(p.category || 'عام')}</span><br>
                         <span class="status-badge ${isAvailable ? 'status-on' : 'status-off'}">${isAvailable ? '✅ متوفر' : '⛔ غير متوفر'}</span>
                         ${isHeavy ? `<br><span class="heavy-badge">⚠️ صورة ثقيلة — بتبطّئ الموقع</span>` : ""}
-                        <span id="img-status-${p.id}" class="img-status"></span>
-                    </div>
-                    <div class="actions">
-                        <input type="number" step="0.05" id="price-${p.id}" value="${p.price}" style="width:75px;">
-                        <button class="btn-save" onclick="savePrice('${p.id}')">حفظ السعر</button>
-                        <button class="btn-toggle" onclick="toggleAvailable('${p.id}', ${isAvailable})">${isAvailable ? 'إيقاف' : 'تفعيل'}</button>
-                        <button class="btn-delete" onclick="deleteProduct('${p.id}')">حذف</button>
-                        <button class="btn-fix" onclick="document.getElementById('file-${p.id}').click()">📷 اختر صورة</button>
-                        <input type="file" id="file-${p.id}" accept="image/*" style="display:none" onchange="handleProductImageFile(event,'${p.id}')">
-                    </div>
-                </div>`;
-        }).join("");
-    }
-
-    // يرفع أي ملف صورة مباشرة لـ Cloudinary بدون فتح أي نافذة أو خطوات إضافية
-    function uploadFileToCloudinary(file) {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-
-        return fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-            method: "POST",
-            body: formData
-        }).then(res => res.json()).then(data => {
-            if (!data.secure_url) throw new Error(data.error?.message || "فشل الرفع");
-            return data.secure_url;
-        });
-    }
-
-    function handleNewProductFile(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const status = document.getElementById("p-upload-status");
-        status.textContent = "⏳ جاري الرفع...";
-        uploadFileToCloudinary(file).then(url => {
-            document.getElementById("p-image-url").value = url;
-            document.getElementById("image-preview").src = url;
-            document.getElementById("image-preview").style.display = "block";
-            status.textContent = "✅ تم رفع الصورة";
-        }).catch(err => {
-            status.textContent = "❌ فشل الرفع";
-            alert("خطأ: " + err.message);
-        });
-    }
-
-    function handleProductImageFile(event, id) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const statusEl = document.getElementById(`img-status-${id}`);
-        if (statusEl) statusEl.textContent = " ⏳ جاري الحفظ...";
-
-        uploadFileToCloudinary(file).then(url => {
-            return db.ref(`products/${id}/image`).set(url);
-        }).then(() => {
-            if (statusEl) statusEl.textContent = " ✅ انحفظت";
-        }).catch(err => {
-            if (statusEl) statusEl.textContent = " ❌ فشل";
-            alert("خطأ: " + err.message);
-        });
-    }
-
-    // يرفع الصورة (base64) مباشرة لـ Cloudinary عن طريق fetch بدون فتح أي نافذة
-    function uploadBase64ToCloudinary(base64) {
-        const formData = new FormData();
-        formData.append("file", base64);
-        formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-
-        return fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-            method: "POST",
-            body: formData
-        }).then(res => res.json()).then(data => {
-            if (!data.secure_url) throw new Error(data.error?.message || "فشل الرفع");
-            return data.secure_url;
-        });
-    }
-
-    // يصلّح كل المنتجات يلي فيها صورة ثقيلة (base64) تلقائياً، وحدة وحدة، بدون أي تدخل يدوي
-    async function fixAllHeavyImages() {
-        const heavyProducts = allProducts.filter(p => typeof p.image === "string" && p.image.startsWith("data:"));
-        if (heavyProducts.length === 0) {
-            alert("ما في صور ثقيلة، كلها مصلّحة ✅");
-            return;
-        }
-
-        const btn = document.getElementById("bulk-fix-btn");
-        const progress = document.getElementById("bulk-progress");
-        btn.disabled = true;
-        progress.style.display = "block";
-
-        let done = 0, failed = 0;
-        for (const p of heavyProducts) {
-            progress.textContent = `جاري التصليح: ${done + failed + 1} من ${heavyProducts.length}...`;
-            try {
-                const newUrl = await uploadBase64ToCloudinary(p.image);
-                await db.ref(`products/${p.id}/image`).set(newUrl);
-                done++;
-            } catch (e) {
-                console.error("فشل تصليح منتج:", p.name, e);
-                failed++;
-            }
-        }
-
-        progress.textContent = `تم! ✅ ${done} صورة انصلحت${failed ? ` — ${failed} فشلت` : ""}.`;
-        btn.disabled = false;
-    }
-
-    function savePrice(id) {
-        const newPrice = parseFloat(document.getElementById(`price-${id}`).value);
-        if (isNaN(newPrice)) { alert("سعر غير صحيح."); return; }
-        db.ref(`products/${id}/price`).set(newPrice);
-    }
-
-    function toggleAvailable(id, current) {
-        db.ref(`products/${id}/available`).set(!current);
-    }
-
-    function deleteProduct(id) {
-        if (confirm("متأكد من الحذف نهائياً؟")) {
-            db.ref(`products/${id}`).remove();
-        }
-    }
-
-    function escapeHTML(str) {
-        return String(str ?? "").replace(/[&<>"']/g, c => ({
-            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-        }[c]));
-    }
-</script>
-</body>
-</html>
