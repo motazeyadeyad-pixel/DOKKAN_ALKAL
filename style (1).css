@@ -1681,3 +1681,37 @@ body:not(.revealed) .menu-fab {
 .dark .install-banner-text strong { color: #4ade80; }
 .dark .install-banner-text small { color: #9aa8a0; }
 .dark .install-banner-close { background: #2a3a33; color: #ddd; }
+
+/* أزرار تحميل التطبيق بالواجهة والقائمة العلوية */
+.hero-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.hero-text .hero-actions button { margin-top: 25px; }
+
+.hero-text .hero-install-btn {
+    background: rgba(255, 255, 255, 0.16);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
+    animation: none;
+}
+
+.hero-text .hero-install-btn:hover { background: #fff; color: #006b3c; }
+
+.nav-install {
+    background: rgba(255, 255, 255, 0.16);
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-weight: bold;
+}
+
+.nav-install:hover { background: #fff; color: #006b3c !important; }
+
+@media (max-width: 700px) {
+    .hero-text .hero-actions button { margin-top: 14px; padding: 10px 18px; font-size: 14px; }
+    .nav-install { padding: 4px 10px; }
+}

@@ -47,6 +47,7 @@
             <a href="#products">المنتجات</a>
             <a href="#categories">الأقسام</a>
             <a href="#" onclick="openSideMenu(); return false;">اتصل بنا</a>
+            <a href="#" class="js-install nav-install" onclick="installApp(); return false;">📲 حمّل التطبيق</a>
         </nav>
 
         <div style="display:flex; align-items:center; gap:10px;">
@@ -68,7 +69,10 @@
             <p>أهلاً وسهلاً بكم في</p>
             <h1>دكان الخال</h1>
             <h3>منتجات متنوعة - أسعار مناسبة - خدمة سريعة</h3>
-            <button onclick="scrollToProducts()">تصفح المنتجات</button>
+            <div class="hero-actions">
+                <button onclick="scrollToProducts()">تصفح المنتجات</button>
+                <button type="button" class="js-install hero-install-btn" onclick="installApp()">📲 حمّل التطبيق</button>
+            </div>
         </div>
     </section>
 
@@ -532,6 +536,7 @@
                 btn.style.display = "none";
                 hint.style.display = "none";
                 banner.style.display = "none";
+                document.querySelectorAll(".js-install").forEach(function (el) { el.style.display = "none"; });
             }
 
             function hintText() {
