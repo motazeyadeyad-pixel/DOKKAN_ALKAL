@@ -117,6 +117,30 @@ function escapeHTML(str) {
     }[c]));
 }
 
+// منتج البهارات: الزبون بيكتب نوع البهار المطلوب
+function isSpiceProduct(p) {
+    return !!(p && p.name && String(p.name).includes("بهار"));
+}
+
+// تهريب رموز Markdown الخاصة بتليجرام بالنصوص اللي بيكتبها الزبون (عشان ما يفشل الإرسال)
+function mdEscape(str) {
+    return String(str ?? "").replace(/([_*`\[])/g, "\\$1");
+}
+
+// عدّاد أحرف ملاحظة الطلب (الحد 100)
+function updateNoteCount() {
+    const note = document.getElementById("order-note");
+    const count = document.getElementById("note-count");
+    if (!note || !count) return;
+    count.textContent = note.value.length;
+    count.parentElement.classList.toggle("full", note.value.length >= 100);
+}
+
+function clearOrderNote() {
+    const note = document.getElementById("order-note");
+    if (note) { note.value = ""; updateNoteCount(); }
+}
+
 // تأخير البحث حتى يتوقف المستخدم عن الكتابة
 function debounce(fn, delay = 250) {
     let timer;
@@ -252,6 +276,7 @@ function createProductCard(product) {
         : PLACEHOLDER_IMG;
 
     const isFav = !!userFavorites[product.id];
+    const isSpice = isSpiceProduct(product);
 
     card.innerHTML = `
         <div style="position:relative; width:100%; height:160px; overflow:hidden; border-radius:8px; margin-bottom:10px; background-color:#f0f0f0;">
@@ -265,6 +290,7 @@ function createProductCard(product) {
         <h3>${escapeHTML(product.name)}</h3>
         <div class="price">${product.price} دينار</div>
         <div class="available">✓ متوفر</div>
+        ${isSpice ? `<input type="text" id="spice-note-${product.id}" class="spice-input" maxlength="60" placeholder="✍️ اكتب نوع البهار المطلوب">` : ""}
 
         <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0;">
             <button type="button" onclick="changeProductQty('${product.id}', -1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">-</button>
@@ -272,7 +298,7 @@ function createProductCard(product) {
             <button type="button" onclick="changeProductQty('${product.id}', 1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">+</button>
         </div>
 
-        <button class="add-button" onclick="addToCart('${product.id}')">🛒 أضف إلى السلة</button>
+        <button class="add-button" onclick="addToCart('${product.id}')">${isSpice ? "📨 إرسال للسلة" : "🛒 أضف إلى السلة"}</button>
     `;
 
     return card;
@@ -359,7 +385,19 @@ function addToCart(productId) {
     let selectedQuantity = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
 
     if (product) {
-        let existingItem = cart.find(item => item.id == productId);
+        // منتج البهارات: لازم الزبون يكتب نوع البهار المطلوب
+        let note = "";
+        const spiceInput = document.getElementById(`spice-note-${productId}`);
+        if (spiceInput) {
+            note = spiceInput.value.trim();
+            if (!note) {
+                showToast("اكتب نوع البهار المطلوب أول ✍️");
+                spiceInput.focus();
+                return;
+            }
+        }
+
+        let existingItem = cart.find(item => item.id == productId && (item.note || "") === note);
         if (existingItem) {
             existingItem.quantity += selectedQuantity;
         } else {
@@ -367,10 +405,12 @@ function addToCart(productId) {
                 id: product.id,
                 name: product.name,
                 price: product.price,
-                quantity: selectedQuantity
+                quantity: selectedQuantity,
+                note: note
             });
         }
         if (qtyInput) qtyInput.value = 1;
+        if (spiceInput) spiceInput.value = "";
         updateCart();
         showToast(`تمت إضافة ${product.name} 🛒`);
     }
@@ -400,7 +440,7 @@ function updateCart() {
             item.innerHTML = `
                 <div style="flex:1;">
                     <strong>${escapeHTML(product.name)}</strong><br>
-                    <small>${product.price} × ${product.quantity} = ${itemTotal.toFixed(2)} دينار</small>
+                    <small>${product.price} × ${product.quantity} = ${itemTotal.toFixed(2)} دينار</small>${product.note ? `<br><small style="color:#006b3c;">✍️ ${escapeHTML(product.note)}</small>` : ""}
                 </div>
                 <div style="display:flex; align-items:center; gap:5px;">
                     <button onclick="changeCartItemQty(${index}, -1)">-</button>
@@ -819,6 +859,8 @@ function getOrderData() {
     let deliveryType = document.getElementById("delivery-type").value;
     let addressInput = document.getElementById("customer-address");
     let address = addressInput ? addressInput.value.trim() : "";
+    const orderNoteEl = document.getElementById("order-note");
+    const orderNote = orderNoteEl ? orderNoteEl.value.trim().slice(0, 100) : "";
 
     if (name === "") {
         alert("الرجاء إدخال اسمك.");
@@ -832,17 +874,22 @@ function getOrderData() {
     }
 
     let itemsList = "";
+    let itemsListMd = ""; // نسخة آمنة لتليجرام
     let subtotal = 0;
     cart.forEach(item => {
         let itemTotal = item.price * item.quantity;
-        itemsList += `- ${item.name} x${item.quantity} (${itemTotal.toFixed(2)} دينار)\n`;
+        const noteTxt = item.note ? ` ✍️ ${item.note}` : "";
+        const noteTxtMd = item.note ? ` ✍️ ${mdEscape(item.note)}` : "";
+        itemsList += `- ${item.name} x${item.quantity} (${itemTotal.toFixed(2)} دينار)${noteTxt}\n`;
+        itemsListMd += `- ${item.name} x${item.quantity} (${itemTotal.toFixed(2)} دينار)${noteTxtMd}\n`;
         subtotal += itemTotal;
     });
 
     let deliveryFee = deliveryType.includes("توصيل للمنزل") ? 0.15 : 0;
     return {
-        name, phone, deliveryType, address: fullAddress, itemsList,
-        items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+        name, phone, deliveryType, address: fullAddress, itemsList, itemsListMd,
+        note: orderNote,
+        items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, note: i.note || "" })),
         subtotal, deliveryFee, total: subtotal + deliveryFee
     };
 }
@@ -862,6 +909,7 @@ function saveOrderToFirebase(data) {
         subtotal: data.subtotal,
         deliveryFee: data.deliveryFee,
         total: data.total,
+        note: data.note || "",
         status: ORDER_STATUSES[0],
         createdAt: Date.now()
     };
@@ -879,7 +927,7 @@ function orderViaTelegram() {
     if (!data) return;
 
     saveOrderToFirebase(data).then((orderId) => {
-        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
+        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsListMd}${data.note ? `\n📝 *ملاحظة:* ${mdEscape(data.note)}\n` : ""}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
 
         return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: "POST",
@@ -888,7 +936,7 @@ function orderViaTelegram() {
         }).then(res => res.json()).then(res => {
             if (res.ok) {
                 alert("تم إرسال الطلب بنجاح! رقم طلبك: " + orderId);
-                cart = []; userLocationUrl = ""; updateCart(); closeCart();
+                cart = []; userLocationUrl = ""; updateCart(); closeCart(); clearOrderNote();
                 trackOrder(orderId);
             } else { alert("خطأ بالإرسال."); }
         });
@@ -903,11 +951,11 @@ function orderViaWhatsApp() {
     if (!data) return;
 
     saveOrderToFirebase(data).then((orderId) => {
-        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
+        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}${data.note ? `\n📝 *ملاحظة:* ${data.note}\n` : ""}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
         let whatsappUrl = `https://wa.me/${MY_PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
 
         alert("تم إرسال الطلب! رقم طلبك: " + orderId);
-        cart = []; userLocationUrl = ""; updateCart(); closeCart();
+        cart = []; userLocationUrl = ""; updateCart(); closeCart(); clearOrderNote();
         window.open(whatsappUrl, "_blank");
         trackOrder(orderId);
     }).catch(err => {
@@ -1019,7 +1067,7 @@ function renderOrderHistoryList(orders, listEl) {
     listEl.innerHTML = "";
     orders.forEach(order => {
         const date = order.createdAt ? new Date(order.createdAt).toLocaleString("ar-EG") : "";
-        const itemsSummary = (order.items || []).map(i => `${i.name} x${i.quantity}`).join("، ");
+        const itemsSummary = (order.items || []).map(i => `${i.name} x${i.quantity}${i.note ? " (" + i.note + ")" : ""}`).join("، ");
 
         const card = document.createElement("div");
         card.style.cssText = "border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:10px;";
@@ -1029,6 +1077,7 @@ function renderOrderHistoryList(orders, listEl) {
                 <span>${date}</span>
             </div>
             <div style="margin:6px 0; color:#555; font-size:14px;">${escapeHTML(itemsSummary)}</div>
+            ${order.note ? `<div style="margin:4px 0; color:#8a6d00; font-size:13px;">📝 ${escapeHTML(order.note)}</div>` : ""}
             <div>الحالة الحالية: <strong>${order.status || ORDER_STATUSES[0]}</strong></div>
             <div>المجموع: <strong>${(order.total || 0).toFixed(2)} دينار</strong></div>
             <div style="display:flex; gap:8px; margin-top:8px;">
@@ -1059,11 +1108,11 @@ function reorderOrder(orderId) {
             const stillExists = allProductsList.find(p => p.id === item.id);
             if (!stillExists) return;
 
-            const existing = cart.find(c => c.id === item.id);
+            const existing = cart.find(c => c.id === item.id && (c.note || "") === (item.note || ""));
             if (existing) {
                 existing.quantity += item.quantity;
             } else {
-                cart.push({ id: item.id, name: item.name, price: item.price, quantity: item.quantity });
+                cart.push({ id: item.id, name: item.name, price: item.price, quantity: item.quantity, note: item.note || "" });
             }
         });
 

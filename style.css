@@ -1720,3 +1720,50 @@ body:not(.revealed) .menu-fab {
 
 /* منع كسر اسم الدكان والقائمة على الشاشات المتوسطة */
 .logo, nav a { white-space: nowrap; }
+
+/* ==================== ملاحظة الطلب + حقل البهارات ==================== */
+.checkout-form textarea {
+    width: 100%;
+    height: 96px;
+    padding: 11px 14px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    resize: none;
+    background-color: #fafafa;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.checkout-form textarea:focus {
+    border-color: #006b3c;
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(0, 107, 60, 0.15);
+}
+
+.note-count { align-self: flex-start; color: #888; font-size: 12px; }
+.note-count.full { color: #e53935; font-weight: bold; }
+
+.spice-input {
+    width: 100%;
+    padding: 9px 10px;
+    margin: 6px 0 2px;
+    border: 1.5px solid #bfe3cf;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    background: #f4fbf7;
+    text-align: right;
+}
+
+.spice-input:focus { border-color: #006b3c; box-shadow: 0 0 0 3px rgba(0, 107, 60, 0.15); background: #fff; }
+
+.dark .checkout-form textarea { background: #202c26; border-color: #33453c; color: #eee; }
+.dark .spice-input { background: #202c26; border-color: #33453c; color: #eee; }
+.dark .note-count { color: #9aa8a0; }
+
+@media (max-width: 700px) {
+    .spice-input { font-size: 12px; padding: 7px 8px; }
+}

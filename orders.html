@@ -20,6 +20,7 @@
     .status-buttons button.active { background:#006b3c; color:#fff; border-color:#006b3c; font-weight:bold; }
     #orders-list { max-width:600px; margin:0 auto; }
     .empty { text-align:center; color:#888; padding:40px; }
+    .order-card .note { background:#fff8e1; border:1px solid #ffe08a; color:#7a5c00; border-radius:8px; padding:6px 10px; font-size:13px; margin-bottom:8px; }
 </style>
 </head>
 <body>
@@ -78,7 +79,7 @@
             orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
             listEl.innerHTML = orders.map(order => {
-                const itemsText = (order.items || []).map(i => `${i.name} x${i.quantity}`).join("، ");
+                const itemsText = (order.items || []).map(i => `${i.name} x${i.quantity}${i.note ? " (✍️ " + i.note + ")" : ""}`).join("، ");
                 const date = order.createdAt ? new Date(order.createdAt).toLocaleString("ar-EG") : "";
                 const buttons = ORDER_STATUSES.map(status =>
                     `<button class="${order.status === status ? 'active' : ''}" onclick="updateStatus('${order.id}','${status}')">${status}</button>`
@@ -88,6 +89,7 @@
                     <div class="order-card">
                         <div class="top"><span>👤 ${escapeHTML(order.customerName || "")}</span><span>${(order.total || 0).toFixed(2)} د</span></div>
                         <div class="items">${escapeHTML(itemsText)}</div>
+                        ${order.note ? `<div class="note">📝 ملاحظة: ${escapeHTML(order.note)}</div>` : ""}
                         <div class="meta">📞 ${escapeHTML(order.phone || "")} — ${date}</div>
                         <div class="status-buttons">${buttons}</div>
                     </div>`;

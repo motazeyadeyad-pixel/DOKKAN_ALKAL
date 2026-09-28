@@ -71,6 +71,7 @@
             <h3>منتجات متنوعة - أسعار مناسبة - خدمة سريعة</h3>
             <div class="hero-actions">
                 <button onclick="scrollToProducts()">تصفح المنتجات</button>
+                <button type="button" class="js-install hero-install-btn" onclick="installApp()">📲 حمّل التطبيق</button>
             </div>
         </div>
     </section>
@@ -171,6 +172,13 @@
                         📍 تحديد موقعي الحالي عبر الـ GPS
                     </button>
                     <p id="location-status" style="font-size: 12px; margin-top: 4px;"></p>
+                </div>
+
+                <!-- ملاحظة على الطلب (حتى 100 حرف) وبتوصل مع الطلب -->
+                <div class="form-group">
+                    <label for="order-note">📝 ملاحظة على الطلب (اختياري)</label>
+                    <textarea id="order-note" maxlength="100" rows="3" placeholder="اكتب ملاحظتك هون... (حتى 100 حرف)" oninput="updateNoteCount()"></textarea>
+                    <small class="note-count"><span id="note-count">0</span> / 100</small>
                 </div>
             </div>
 
@@ -345,17 +353,17 @@
 
             <!-- عن الدكان (عدّل البيانات هون) -->
             <div class="menu-section">
-                <div class="menu-section-title">🏪 معلومات عن الدكان</div>
+                <div class="menu-section-title">🏪 عن الدكان</div>
                 <div class="shop-info">
-                    <b>📍 الموقع:</b> شارع المقبرة تحت الصحة القديمة<br>
-                    <b>🕗 الدوام:</b> يومياً من 9 صباحاً حتى 1 مساءً<br>
+                    <b>🕗 الدوام:</b> من الساعة 9 صباحاً إلى الساعة 11 مساءً<br>
+                    <b>📍 الموقع:</b> شارع المقبرة - تحت الصحة القديمة<br>
                     <b>🛵 التوصيل:</b> 0.15 دينار للمنزل
                 </div>
 
                 <!-- غيّر الروابط والأرقام هون -->
-                <a class="menu-link" href=https://maps.app.goo.gl/xe8EhyoC6bKKNooM6" target="_blank" rel="noopener">📍 موقع الدكان على الخريطة</a>
-                <a class="menu-link" href="tel:+962775279117">📞 اتصل بالدكان</a>
-                <a class="menu-link whatsapp" href="https://wa.me/962775279117" target="_blank" rel="noopener">💬 راسلنا على واتساب</a>
+                <a class="menu-link" href="https://maps.app.goo.gl/kXAU5Z2HtCa83ety5" target="_blank" rel="noopener">📍 موقع الدكان على الخريطة</a>
+                <a class="menu-link" href="tel:+962775279117">📞 اتصل بالدكان: 0775279117</a>
+                <a class="menu-link whatsapp" href="https://wa.me/962775279117" target="_blank" rel="noopener">💬 واتساب: 0775279117</a>
             </div>
 
             <!-- أدوات -->
@@ -373,7 +381,7 @@
             <div class="dev-avatar">👨‍💻</div>
             <div>
                 <small>تصميم وتطوير</small>
-                <strong id="dev-name">معتز اياد عطا </strong>
+                <strong id="dev-name">اكتب اسمك هنا</strong>
                 <em>© 2026 جميع الحقوق محفوظة</em>
             </div>
         </div>
