@@ -423,7 +423,9 @@ nav a:hover {
 /* الواجهة الرئيسية */
 .hero {
     height: 400px;
-    background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("images/sola.png");
+    background-color: #24382d;
+    /* الصورة تنقرأ من images/sola.png، وإذا مش موجودة هناك تنقرأ من sola.png بجانب index.html */
+    background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("images/sola.png"), url("sola.png");
     background-size: cover;
     background-position: center;
     display: flex;
@@ -1715,3 +1717,6 @@ body:not(.revealed) .menu-fab {
     .hero-text .hero-actions button { margin-top: 14px; padding: 10px 18px; font-size: 14px; }
     .nav-install { padding: 4px 10px; }
 }
+
+/* منع كسر اسم الدكان والقائمة على الشاشات المتوسطة */
+.logo, nav a { white-space: nowrap; }
