@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دكان الخال</title>
+    <meta name="description" content="دكان الخال - منتجات متنوعة، أسعار مناسبة، وخدمة توصيل سريعة">
+    <meta name="theme-color" content="#006b3c">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="دكان الخال">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        /* تطبيق إعدادات الزبون المحفوظة مبكراً (بدون وميض) */
+        try {
+            var _s = JSON.parse(localStorage.getItem("dukkan_settings") || "{}");
+            var _r = document.documentElement;
+            if (_s.dark) _r.classList.add("dark");
+            if (_s.noMotion) _r.classList.add("no-motion");
+            if (_s.large) _r.classList.add("text-large");
+        } catch (e) {}
+    </script>
+</head>
+<body>
+
+    <!-- شاشة الترحيب (تظهر أول ما يفتح الموقع) -->
+    <div id="splash-screen">
+        <div class="splash-logo">🛒</div>
+        <div class="splash-greeting">أهلاً وسهلاً بك في</div>
+        <div class="splash-brand">دكان الخال</div>
+        <div class="splash-subtitle">منتجات متنوعة - أسعار مناسبة - خدمة سريعة</div>
+        <div class="splash-progress"><div class="splash-progress-bar"></div></div>
+    </div>
+
+    <!-- القائمة العلوية -->
+    <header>
+        <div class="logo">
+            🛒 دكان الخال
+        </div>
+
+        <nav>
+            <a href="#">الرئيسية</a>
+            <a href="#products">المنتجات</a>
+            <a href="#categories">الأقسام</a>
+            <a href="#" onclick="openSideMenu(); return false;">اتصل بنا</a>
+            <a href="#" class="js-install nav-install" onclick="installApp(); return false;">📲 حمّل التطبيق</a>
+        </nav>
+
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button class="account-button" id="account-btn" onclick="handleAccountClick()">
+                تسجيل الدخول
+            </button>
+            <span id="account-name-label" style="font-size:14px; font-weight:bold;"></span>
+
+            <button class="cart-button" onclick="showCart()">
+                🛒 السلة
+                <span id="cart-count">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- واجهة الموقع -->
+    <section class="hero">
+        <div class="hero-text">
+            <p>أهلاً وسهلاً بكم في</p>
+            <h1>دكان الخال</h1>
+            <h3>منتجات متنوعة - أسعار مناسبة - خدمة سريعة</h3>
+            <div class="hero-actions">
+                <button onclick="scrollToProducts()">تصفح المنتجات</button>
+                <button type="button" class="js-install hero-install-btn" onclick="installApp()">📲 حمّل التطبيق</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- الأقسام -->
+    <section id="categories" class="categories">
+        <h2 class="reveal">الأقسام</h2>
+        <div class="category-container reveal-stagger">
+            <button class="active" onclick="filterByCategory('الكل', this)">🛒 الكل</button>
+            <button onclick="filterByCategory('مواد غذائية', this)">🥫 مواد غذائية</button>
+            <button onclick="filterByCategory('سكاكر', this)">🍬 سكاكر وحلويات</button>
+            <button onclick="filterByCategory('مشروبات', this)">🥤 مشروبات</button>
+            <button onclick="filterByCategory('منظفات', this)">🧴 منظفات</button>
+            <button onclick="filterByCategory('مستلزمات شخصية', this)">🧼 مستلزمات شخصية</button>
+            <button onclick="filterByCategory('المفضلة', this)">❤️ المفضلة</button>
+        </div>
+    </section>
+
+    <!-- المنتجات وشريط البحث -->
+    <section id="products" class="products-section">
+        <h2 class="reveal">منتجاتنا</h2>
+
+        <!-- شريط البحث المباشر -->
+        <div class="search-box reveal" style="max-width: 500px; margin: 0 auto 25px auto; display: flex; gap: 8px; padding: 0 10px;">
+            <input 
+                type="text" 
+                id="search-input" 
+                placeholder="🔍 ابحث عن منتج (مثل: اندومي، زيت، شيبس...)" 
+                style="flex: 1; padding: 12px 15px; border: 2px solid #006b3c; border-radius: 10px; font-size: 16px; outline: none; background: #fff;"
+            >
+            <button 
+                onclick="displayProducts()" 
+                style="background: #006b3c; color: white; border: none; padding: 0 20px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;"
+            >
+                بحث
+            </button>
+        </div>
+
+        <div id="products-container" class="products-container">
+            <!-- المنتجات يتم عرضها من JavaScript -->
+        </div>
+    </section>
+
+    <!-- السلة المحدثة -->
+    <div id="cart" class="cart">
+        <div class="cart-box">
+            <button class="close" onclick="closeCart()">×</button>
+            <h2>🛒 سلة المشتريات</h2>
+
+            <div id="cart-items">
+                لا يوجد منتجات في السلة
+            </div>
+
+            <!-- تفاصيل الأسعار والتوصيل -->
+            <div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px; font-size: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>مجموع المنتجات:</span>
+                    <span><span id="subtotal">0</span> دينار</span>
+                </div>
+                <div id="delivery-fee-row" style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #d97706; display: none;">
+                    <span>رسوم التوصيل:</span>
+                    <span>0.15 دينار</span>
+                </div>
+            </div>
+
+            <div class="total-price" style="border-top: 1px dashed #ccc; margin-top: 5px; padding-top: 5px;">
+                <span>المجموع الكلي:</span>
+                <span><span id="total">0</span> دينار</span>
+            </div>
+
+            <!-- بيانات الزبون -->
+            <div class="checkout-form">
+                <div class="form-group">
+                    <label for="customer-name">الاسم الكامل <span style="color:red;">*</span></label>
+                    <input type="text" id="customer-name" placeholder="أدخل اسمك الكريم">
+                </div>
+
+                <div class="form-group">
+                    <label for="customer-phone">رقم الهاتف (اختياري)</label>
+                    <input type="tel" id="customer-phone" placeholder="07X XXX XXXX">
+                </div>
+
+                <div class="form-group">
+                    <label for="delivery-type">طريقة الاستلام</label>
+                    <select id="delivery-type" onchange="toggleAddressInput()">
+                        <option value="🛍️ استلام من الدكان">🛍️ استلام من الدكان</option>
+                        <option value="🛵 توصيل للمنزل">🛵 توصيل للمنزل (0.15 دينار)</option>
+                    </select>
+                </div>
+
+                <!-- حقل العنوان الخفي مع زر الـ GPS -->
+                <div class="form-group" id="address-group" style="display: none;">
+                    <label for="customer-address">مكان السكن / العنوان بالتفصيل <span style="color:red;">*</span></label>
+                    <input type="text" id="customer-address" placeholder="مثال: الشارع الرئيسي - بجانب المخبز">
+                    
+                    <!-- زر جلب الموقع عبر الـ GPS -->
+                    <button type="button" class="btn-gps" onclick="getLocation()">
+                        📍 تحديد موقعي الحالي عبر الـ GPS
+                    </button>
+                    <p id="location-status" style="font-size: 12px; margin-top: 4px;"></p>
+                </div>
+            </div>
+
+            <div class="order-buttons">
+                <button class="order-button btn-telegram" onclick="orderViaTelegram()">
+                    🔵 إرسال الطلب مباشر (تنبيه فوري)
+                </button>
+                <button class="order-button btn-whatsapp" onclick="orderViaWhatsApp()">
+                    🟢 إرسال عبر الواتساب
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تسجيل الدخول / إنشاء حساب -->
+    <div id="auth-modal" class="modal-overlay">
+        <div class="modal-box">
+            <button class="close" onclick="closeAuthModal()">×</button>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn active" id="tab-login-btn" onclick="switchAuthTab('login')">تسجيل الدخول</button>
+                <button type="button" class="auth-tab-btn" id="tab-register-btn" onclick="switchAuthTab('register')">حساب جديد</button>
+            </div>
+
+            <!-- نموذج تسجيل الدخول -->
+            <div id="login-tab" class="auth-tab-content">
+                <h2>تسجيل الدخول</h2>
+
+                <!-- تسجيل دخول سريع عبر Google / Facebook -->
+                <div class="social-login-buttons">
+                    <button type="button" class="social-btn btn-google" onclick="loginWithGoogle()">
+                        <span class="social-icon">G</span> المتابعة عبر Google
+                    </button>
+                    <button type="button" class="social-btn btn-facebook" onclick="loginWithFacebook()">
+                        <span class="social-icon">f</span> المتابعة عبر Facebook
+                    </button>
+                </div>
+
+                <div class="auth-divider"><span>أو عبر الإيميل</span></div>
+
+                <div class="form-group">
+                    <label for="login-email">الإيميل</label>
+                    <input type="email" id="login-email" placeholder="example@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">كلمة المرور</label>
+                    <input type="password" id="login-password" placeholder="••••••">
+                </div>
+                <button type="button" class="order-button btn-telegram" onclick="loginUser()">دخول</button>
+
+                <div class="auth-divider"><span>أو عبر رقم الهاتف</span></div>
+
+                <div class="form-group">
+                    <label for="phone-login-number">رقم الهاتف</label>
+                    <input type="tel" id="phone-login-number" placeholder="07X XXX XXXX">
+                </div>
+                <div id="recaptcha-container" style="margin:10px 0;"></div>
+                <button type="button" class="order-button btn-whatsapp" onclick="sendPhoneOtp()">📩 إرسال رمز التحقق</button>
+
+                <div id="phone-otp-group" class="form-group" style="display:none; margin-top:12px;">
+                    <label for="phone-otp-code">رمز التحقق</label>
+                    <input type="text" id="phone-otp-code" placeholder="123456" inputmode="numeric">
+                    <button type="button" class="order-button btn-telegram" onclick="verifyPhoneOtp()">تأكيد الرمز والدخول</button>
+                </div>
+            </div>
+
+            <!-- نموذج إنشاء حساب -->
+            <div id="register-tab" class="auth-tab-content" style="display:none;">
+                <h2>إنشاء حساب جديد</h2>
+                <div class="form-group">
+                    <label for="register-name">الاسم الكامل</label>
+                    <input type="text" id="register-name" placeholder="اسمك الكريم">
+                </div>
+                <div class="form-group">
+                    <label for="register-phone">رقم الهاتف (اختياري)</label>
+                    <input type="tel" id="register-phone" placeholder="07X XXX XXXX">
+                </div>
+                <div class="form-group">
+                    <label for="register-email">الإيميل</label>
+                    <input type="email" id="register-email" placeholder="example@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="register-password">كلمة المرور</label>
+                    <input type="password" id="register-password" placeholder="6 أحرف على الأقل">
+                </div>
+                <button type="button" class="order-button btn-whatsapp" onclick="registerUser()">إنشاء الحساب</button>
+            </div>
+
+            <div id="account-actions" style="display:none; text-align:center; margin-top:10px;">
+                <button type="button" onclick="openOrderHistory(); closeAuthModal();" class="order-button btn-telegram">📦 سجل طلباتي</button>
+                <button type="button" onclick="logoutUser(); closeAuthModal();" class="order-button" style="background:#999; color:#fff;">🚪 تسجيل الخروج</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تتبع حالة الطلب -->
+    <div id="tracking-modal" class="modal-overlay">
+        <div class="modal-box">
+            <button class="close" onclick="closeTrackingModal()">×</button>
+            <h2>📍 تتبع طلبك</h2>
+            <div id="tracking-steps"></div>
+        </div>
+    </div>
+
+    <!-- مودال سجل الطلبات السابقة -->
+    <div id="orders-history-modal" class="modal-overlay">
+        <div class="modal-box">
+            <button class="close" onclick="closeOrderHistoryModal()">×</button>
+            <h2>📦 طلباتي السابقة</h2>
+            <div id="orders-history-list"></div>
+        </div>
+    </div>
+
+    <footer>
+        <h3>دكان الخال</h3>
+        <p>كل ما تحتاجه في مكان واحد</p>
+
+        <div class="store-rating-box reveal">
+            <p>قيّم تجربتك معنا</p>
+            <div id="store-rating-stars" class="store-rating-stars">☆☆☆☆☆</div>
+            <div id="store-rating-text" class="store-rating-text">لا يوجد تقييم بعد</div>
+        </div>
+
+        <p>© 2026 دكان الخال</p>
+    </footer>
+
+    <!-- ==================== زر الثلاث نقاط والقائمة الجانبية ==================== -->
+    <!-- شريط تثبيت التطبيق -->
+    <div id="install-banner" class="install-banner" style="display:none;">
+        <span class="install-banner-icon">📲</span>
+        <div class="install-banner-text"><strong>ثبّت تطبيق دكان الخال</strong><small>أسرع وأسهل من المتصفح</small></div>
+        <button type="button" class="install-banner-btn" onclick="installApp()">تثبيت</button>
+        <button type="button" class="install-banner-close" onclick="dismissInstallBanner()" aria-label="إغلاق">×</button>
+    </div>
+
+    <button class="menu-fab" id="menu-fab" onclick="toggleSideMenu()" aria-label="القائمة والإعدادات">⋮</button>
+    <div id="side-menu-overlay" class="side-menu-overlay" onclick="closeSideMenu()"></div>
+
+    <aside id="side-menu" class="side-menu" aria-hidden="true">
+        <div class="side-menu-head">
+            <div>
+                <h3>🛒 دكان الخال</h3>
+                <p>القائمة والإعدادات</p>
+            </div>
+            <button class="side-menu-close" onclick="closeSideMenu()" aria-label="إغلاق">×</button>
+        </div>
+
+        <div class="side-menu-body">
+
+            <!-- الإعدادات -->
+            <div class="menu-section">
+                <div class="menu-section-title">⚙️ الإعدادات</div>
+
+                <div class="menu-row">
+                    <span>🌙 الوضع المظلم<small>مريح للعين بالليل</small></span>
+                    <label class="switch"><input type="checkbox" id="set-dark" onchange="updateSetting('dark', this.checked)"><span class="slider"></span></label>
+                </div>
+
+                <div class="menu-row">
+                    <span>✨ تقليل الحركة<small>إيقاف التأثيرات والانيميشن</small></span>
+                    <label class="switch"><input type="checkbox" id="set-motion" onchange="updateSetting('noMotion', this.checked)"><span class="slider"></span></label>
+                </div>
+
+                <div class="menu-row">
+                    <span>🔠 حجم الخط</span>
+                    <div class="seg">
+                        <button type="button" id="font-normal" onclick="updateSetting('large', false)">عادي</button>
+                        <button type="button" id="font-large" onclick="updateSetting('large', true)">كبير</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- عن الدكان (عدّل البيانات هون) -->
+            <div class="menu-section">
+                <div class="menu-section-title">🏪 عن الدكان</div>
+                <div class="shop-info">
+                    <b>📍 الموقع:</b> اكتب عنوان الدكان هون<br>
+                    <b>🕗 الدوام:</b> يومياً من 8 صباحاً حتى 11 مساءً<br>
+                    <b>🛵 التوصيل:</b> 0.15 دينار للمنزل
+                </div>
+
+                <!-- غيّر الروابط والأرقام هون -->
+                <a class="menu-link" href="https://www.google.com/maps/search/?api=1&query=Amman" target="_blank" rel="noopener">📍 موقع الدكان على الخريطة</a>
+                <a class="menu-link" href="tel:+962700000000">📞 اتصل بالدكان</a>
+                <a class="menu-link whatsapp" href="https://wa.me/962700000000" target="_blank" rel="noopener">💬 راسلنا على واتساب</a>
+            </div>
+
+            <!-- أدوات -->
+            <div class="menu-section">
+                <div class="menu-section-title">🔗 المزيد</div>
+                <button type="button" class="menu-link" onclick="shareSite()">📤 شارك الموقع مع أصدقائك</button>
+                <button type="button" id="install-btn" class="menu-link" onclick="installApp()">📲 ثبّت التطبيق على موبايلك</button>
+                <div id="install-hint" class="shop-info" style="display:none;"></div>
+                <button type="button" class="menu-link" onclick="closeSideMenu(); document.getElementById('products').scrollIntoView({behavior:'smooth'});">🛍️ تصفح المنتجات</button>
+            </div>
+        </div>
+
+        <!-- بطاقة منشئ الموقع (غيّر الاسم هون) -->
+        <div class="dev-card">
+            <div class="dev-avatar">👨‍💻</div>
+            <div>
+                <small>تصميم وتطوير</small>
+                <strong id="dev-name">اكتب اسمك هنا</strong>
+                <em>© 2026 جميع الحقوق محفوظة</em>
+            </div>
+        </div>
+    </aside>
+
+    <div id="toast-container"></div>
+
+    <!-- مكتبات Firebase المطلوبة -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <!-- مكتبة Cloudinary لرفع الصور -->
+    <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
+
+    <!-- ملف السكربت الخاص بالموقع -->
+    <script src="script.js"></script>
+
+    <!-- سكربت شاشة الترحيب: يظهر الموقع بحركة بعد 3 ثواني عشان الزبون يقرأ اسم الدكان -->
+    <script>
+        (function () {
+            var MIN_SPLASH_TIME = document.documentElement.classList.contains("no-motion") ? 200 : 3000; // مدة ظهور شاشة الترحيب بالميلي ثانية (لازم تطابق CSS)
+            var startTime = Date.now();
+
+            function revealSite() {
+                var splash = document.getElementById("splash-screen");
+                document.body.classList.add("revealed");
+                if (splash) {
+                    splash.classList.add("hide");
+                    setTimeout(function () {
+                        splash.style.display = "none";
+                    }, 700);
+                }
+            }
+
+            function onReady() {
+                var elapsed = Date.now() - startTime;
+                var remaining = Math.max(MIN_SPLASH_TIME - elapsed, 0);
+                setTimeout(revealSite, remaining);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", onReady);
+            } else {
+                onReady();
+            }
+
+            // شبكة أمان: لا نخلي الزبون عالق وراء شاشة الترحيب لأي سبب
+            setTimeout(revealSite, 6000);
+        })();
+    </script>
+
+    <!-- سكربت حركة ظهور الأقسام عند التمرير إليها -->
+    <script>
+        (function () {
+            var revealEls = document.querySelectorAll(".reveal, .reveal-stagger");
+
+            if (!("IntersectionObserver" in window)) {
+                revealEls.forEach(function (el) { el.classList.add("in-view"); });
+                return;
+            }
+
+            var observer = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add("in-view");
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.15 });
+
+            revealEls.forEach(function (el) { observer.observe(el); });
+        })();
+    </script>
+
+    <!-- سكربت القائمة الجانبية والإعدادات -->
+    <script>
+        (function () {
+            var KEY = "dukkan_settings";
+            var root = document.documentElement;
+            var state = { dark: false, noMotion: false, large: false };
+
+            try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
+
+            function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+            function apply() {
+                root.classList.toggle("dark", !!state.dark);
+                root.classList.toggle("no-motion", !!state.noMotion);
+                root.classList.toggle("text-large", !!state.large);
+                document.getElementById("set-dark").checked = !!state.dark;
+                document.getElementById("set-motion").checked = !!state.noMotion;
+                document.getElementById("font-normal").classList.toggle("on", !state.large);
+                document.getElementById("font-large").classList.toggle("on", !!state.large);
+            }
+
+            function toast(msg) {
+                var box = document.getElementById("toast-container");
+                var el = document.createElement("div");
+                el.className = "toast-msg";
+                el.textContent = msg;
+                box.appendChild(el);
+                setTimeout(function () { el.classList.add("show"); }, 20);
+                setTimeout(function () { el.classList.remove("show"); setTimeout(function () { el.remove(); }, 300); }, 2200);
+            }
+
+            window.updateSetting = function (key, value) { state[key] = value; save(); apply(); };
+
+            window.openSideMenu = function () {
+                document.getElementById("side-menu").classList.add("open");
+                document.getElementById("side-menu-overlay").classList.add("open");
+                document.getElementById("side-menu").setAttribute("aria-hidden", "false");
+            };
+            window.closeSideMenu = function () {
+                document.getElementById("side-menu").classList.remove("open");
+                document.getElementById("side-menu-overlay").classList.remove("open");
+                document.getElementById("side-menu").setAttribute("aria-hidden", "true");
+            };
+            window.toggleSideMenu = function () {
+                if (document.getElementById("side-menu").classList.contains("open")) closeSideMenu();
+                else openSideMenu();
+            };
+
+            window.shareSite = function () {
+                var data = { title: "دكان الخال", text: "تسوّق من دكان الخال 🛒", url: location.href };
+                if (navigator.share) {
+                    navigator.share(data).catch(function () {});
+                } else if (navigator.clipboard) {
+                    navigator.clipboard.writeText(location.href).then(function () { toast("تم نسخ رابط الموقع ✅"); });
+                }
+            };
+
+            document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSideMenu(); });
+
+            apply();
+        })();
+    </script>
+
+    <!-- سكربت تثبيت التطبيق (PWA) -->
+    <script>
+        (function () {
+            var ua = navigator.userAgent;
+            var deferredPrompt = null;
+            var isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+            var isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+            var isAndroid = /android/i.test(ua);
+            var btn = document.getElementById("install-btn");
+            var hint = document.getElementById("install-hint");
+            var banner = document.getElementById("install-banner");
+            var DISMISS_KEY = "dukkan_install_dismissed";
+
+            if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+                window.addEventListener("load", function () {
+                    navigator.serviceWorker.register("sw.js").catch(function () {});
+                });
+            }
+
+            function hideAll() {
+                btn.style.display = "none";
+                hint.style.display = "none";
+                banner.style.display = "none";
+                document.querySelectorAll(".js-install").forEach(function (el) { el.style.display = "none"; });
+            }
+
+            function hintText() {
+                if (isIOS) return "على الآيفون: افتح الموقع من <b>Safari</b>، دوس زر المشاركة <b>⬆️</b> بأسفل الشاشة، ثم اختر <b>\"إضافة إلى الشاشة الرئيسية\"</b>.";
+                if (isAndroid) return "على أندرويد: افتح الموقع من <b>Chrome</b>، دوس على <b>⋮</b> أعلى الشاشة، ثم اختر <b>\"تثبيت التطبيق\"</b> أو <b>\"إضافة إلى الشاشة الرئيسية\"</b>.";
+                return "افتح الموقع من موبايلك: <b>Chrome</b> على أندرويد أو <b>Safari</b> على الآيفون، وبتقدر تثبته كتطبيق.";
+            }
+
+            function bannerDismissedRecently() {
+                try {
+                    var t = parseInt(localStorage.getItem(DISMISS_KEY) || "0", 10);
+                    return t && (Date.now() - t) < 7 * 24 * 60 * 60 * 1000;
+                } catch (e) { return false; }
+            }
+
+            if (isStandalone) { hideAll(); return; }
+
+            window.addEventListener("beforeinstallprompt", function (e) {
+                e.preventDefault();
+                deferredPrompt = e;
+            });
+
+            window.addEventListener("appinstalled", function () { deferredPrompt = null; hideAll(); });
+
+            window.installApp = function () {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.finally(function () { deferredPrompt = null; hideAll(); });
+                } else {
+                    // ما في نافذة تثبيت تلقائية: اعرض الخطوات اليدوية بالقائمة الجانبية
+                    hint.innerHTML = hintText();
+                    hint.style.display = "block";
+                    banner.style.display = "none";
+                    if (typeof openSideMenu === "function") openSideMenu();
+                }
+            };
+
+            window.dismissInstallBanner = function () {
+                banner.style.display = "none";
+                try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch (e) {}
+            };
+
+            // الشريط يظهر بعد شاشة الترحيب بشوي (على الموبايل فقط)
+            if ((isIOS || isAndroid) && !bannerDismissedRecently()) {
+                setTimeout(function () { banner.style.display = "flex"; }, 4800);
+            }
+        })();
+    </script>
+
+    <!-- سكربت بسيط لتبديل تبويبات مودال تسجيل الدخول وزر الحساب -->
+    <script>
+        function switchAuthTab(tab) {
+            const loginTab = document.getElementById("login-tab");
+            const registerTab = document.getElementById("register-tab");
+            const loginBtn = document.getElementById("tab-login-btn");
+            const registerBtn = document.getElementById("tab-register-btn");
+
+            if (tab === "login") {
+                loginTab.style.display = "block";
+                registerTab.style.display = "none";
+                loginBtn.classList.add("active");
+                registerBtn.classList.remove("active");
+            } else {
+                loginTab.style.display = "none";
+                registerTab.style.display = "block";
+                loginBtn.classList.remove("active");
+                registerBtn.classList.add("active");
+            }
+        }
+
+        function handleAccountClick() {
+            if (typeof currentUser !== "undefined" && currentUser) {
+                const modal = document.getElementById("auth-modal");
+                document.querySelector(".auth-tabs").style.display = "none";
+                document.getElementById("login-tab").style.display = "none";
+                document.getElementById("register-tab").style.display = "none";
+                document.getElementById("account-actions").style.display = "block";
+                modal.style.display = "flex";
+            } else {
+                document.querySelector(".auth-tabs").style.display = "flex";
+                document.getElementById("account-actions").style.display = "none";
+                switchAuthTab("login");
+                openAuthModal();
+            }
+        }
+    </script>
+</body>
+</html>
