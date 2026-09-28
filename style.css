@@ -1,0 +1,1352 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 100px;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f5f7f6;
+    color: #222;
+    overflow-x: hidden; /* لمنع الحركة يمين وشمال نهائياً */
+}
+
+/* منع التمرير طالما شاشة الترحيب ظاهرة */
+body:not(.revealed) {
+    overflow: hidden;
+}
+
+/* ==================== شاشة الترحيب (Splash Screen) ==================== */
+/* ملاحظة: مدة الشاشة (3 ثواني) مضبوطة هنا وبملف index.html (MIN_SPLASH_TIME) معاً */
+#splash-screen {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: linear-gradient(135deg, #006b3c, #00341f, #00b06b, #004d2a);
+    background-size: 300% 300%;
+    animation: splash-bg-shift 7s ease infinite;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    color: white;
+    text-align: center;
+    padding: 20px;
+    transition: opacity 0.7s ease, visibility 0.7s ease;
+}
+
+#splash-screen.hide {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* كرات ضوء عائمة بخلفية شاشة الترحيب لإحساس عصري */
+#splash-screen::before,
+#splash-screen::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: 0.35;
+    z-index: 0;
+}
+
+#splash-screen::before {
+    width: 280px;
+    height: 280px;
+    background: #00e08a;
+    top: -70px;
+    left: -70px;
+    animation: splash-blob-float 8s ease-in-out infinite;
+}
+
+#splash-screen::after {
+    width: 240px;
+    height: 240px;
+    background: #00c97a;
+    bottom: -70px;
+    right: -50px;
+    animation: splash-blob-float 9s ease-in-out infinite reverse;
+}
+
+#splash-screen > * {
+    position: relative;
+    z-index: 1;
+}
+
+.splash-logo {
+    font-size: 64px;
+    animation: splash-pop 0.7s ease both;
+}
+
+.splash-greeting {
+    font-size: 18px;
+    margin-top: 18px;
+    color: #d8fbe8;
+    opacity: 0;
+    animation: splash-fade-up 0.6s ease 0.35s forwards;
+}
+
+.splash-brand {
+    font-size: 42px;
+    font-weight: 800;
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    animation: splash-brand-in 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.75s forwards;
+}
+
+.splash-subtitle {
+    font-size: 15px;
+    margin-top: 14px;
+    color: #e3fbee;
+    opacity: 0;
+    animation: splash-fade-up 0.6s ease 1.3s forwards;
+}
+
+.splash-progress {
+    width: 170px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+    margin-top: 32px;
+    overflow: hidden;
+    opacity: 0;
+    animation: splash-fade-up 0.5s ease 1.5s forwards;
+}
+
+.splash-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #b8f5d2, #ffffff);
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+    animation: splash-progress-fill 1.9s ease 1.5s forwards;
+}
+
+@keyframes splash-bg-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes splash-blob-float {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(30px, 25px); }
+}
+
+@keyframes splash-pop {
+    from { transform: scale(0.4); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes splash-brand-in {
+    from { opacity: 0; transform: scale(0.7) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes splash-fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes splash-progress-fill {
+    from { width: 0%; }
+    to { width: 100%; }
+}
+
+/* ==================== دخول الموقع بعد شاشة الترحيب ==================== */
+header {
+    opacity: 0;
+    transform: translateY(-14px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+body.revealed header {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.hero-text p,
+.hero-text h1,
+.hero-text h3,
+.hero-text button {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+body.revealed .hero-text p { transition-delay: 0.15s; }
+body.revealed .hero-text h1 { transition-delay: 0.3s; }
+body.revealed .hero-text h3 { transition-delay: 0.45s; }
+body.revealed .hero-text button { transition-delay: 0.6s; }
+
+body.revealed .hero-text p,
+body.revealed .hero-text h1,
+body.revealed .hero-text h3,
+body.revealed .hero-text button {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ==================== حركة ظهور الأقسام عند التمرير (Scroll Reveal) ==================== */
+.reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal.in-view {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.reveal-stagger > * {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.reveal-stagger.in-view > * {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.reveal-stagger.in-view > *:nth-child(1) { transition-delay: 0.05s; }
+.reveal-stagger.in-view > *:nth-child(2) { transition-delay: 0.1s; }
+.reveal-stagger.in-view > *:nth-child(3) { transition-delay: 0.15s; }
+.reveal-stagger.in-view > *:nth-child(4) { transition-delay: 0.2s; }
+.reveal-stagger.in-view > *:nth-child(5) { transition-delay: 0.25s; }
+.reveal-stagger.in-view > *:nth-child(6) { transition-delay: 0.3s; }
+.reveal-stagger.in-view > *:nth-child(7) { transition-delay: 0.35s; }
+.reveal-stagger.in-view > *:nth-child(8) { transition-delay: 0.4s; }
+
+/* ==================== لمعة إضاءة عند تمرير الماوس على الأزرار ==================== */
+.hero-text button,
+.add-button,
+.order-button,
+.cart-button,
+.category-container button,
+.account-button {
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-text button::after,
+.add-button::after,
+.order-button::after,
+.cart-button::after,
+.category-container button::after,
+.account-button::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    transform: skewX(-20deg);
+    transition: right 0.65s ease;
+    pointer-events: none;
+}
+
+.hero-text button:hover::after,
+.add-button:hover::after,
+.order-button:hover::after,
+.cart-button:hover::after,
+.category-container button:hover::after,
+.account-button:hover::after {
+    right: 130%;
+}
+
+/* توهج نابض على زر الدعوة الرئيسي ليشد الانتباه */
+.hero-text button {
+    animation: hero-btn-glow 2.4s ease-in-out infinite;
+}
+
+.hero-text button:hover {
+    animation-play-state: paused;
+}
+
+@keyframes hero-btn-glow {
+    0%, 100% { box-shadow: 0 5px 20px rgba(0, 107, 60, 0.4); }
+    50% { box-shadow: 0 8px 32px rgba(0, 176, 107, 0.75); }
+}
+
+/* توهج خفيف نابض على القسم المختار حالياً */
+.category-container button.active {
+    animation: category-active-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes category-active-glow {
+    0%, 100% { box-shadow: 0 4px 15px rgba(0, 107, 60, 0.35) !important; }
+    50% { box-shadow: 0 4px 26px rgba(0, 107, 60, 0.65) !important; }
+}
+
+/* لمن يفضّل تقليل الحركة */
+@media (prefers-reduced-motion: reduce) {
+    #splash-screen,
+    #splash-screen::before,
+    #splash-screen::after,
+    .splash-logo,
+    .splash-greeting,
+    .splash-brand,
+    .splash-subtitle,
+    .splash-progress,
+    .splash-progress-bar,
+    header,
+    .hero-text p,
+    .hero-text h1,
+    .hero-text h3,
+    .hero-text button,
+    .hero-text button::after,
+    .add-button::after,
+    .order-button::after,
+    .cart-button::after,
+    .category-container button::after,
+    .account-button::after,
+    .category-container button.active,
+    .reveal,
+    .reveal-stagger > * {
+        animation: none !important;
+        transition: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+
+    html {
+        scroll-behavior: auto;
+    }
+}
+
+/* القائمة العلوية */
+header {
+    height: 80px;
+    background: linear-gradient(135deg, #006b3c, #004d2a);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 6%;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.logo {
+    font-size: 28px;
+    font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+nav {
+    display: flex;
+    gap: 30px;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    font-size: 17px;
+    transition: color 0.2s;
+}
+
+nav a:hover {
+    color: #b8f5d2;
+}
+
+/* زر السلة الفخم والمتوهج */
+.cart-button {
+    background: linear-gradient(135deg, #ffffff, #f0f5f2);
+    color: #006b3c;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.cart-button:active {
+    transform: scale(0.93);
+}
+
+#cart-count {
+    background: #e53935;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 7px;
+    margin-right: 5px;
+    font-size: 14px;
+}
+
+/* زر تسجيل الدخول / حسابي */
+.account-button {
+    background: #fff;
+    color: #006b3c;
+    border: 2px solid #fff;
+    padding: 9px 16px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.account-button:hover {
+    background: transparent;
+    color: #fff;
+    border-color: #fff;
+}
+
+.account-button:active {
+    transform: scale(0.93);
+}
+
+#account-name-label {
+    color: #b8f5d2;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* الواجهة الرئيسية */
+.hero {
+    height: 400px;
+    background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("images/sola.png");
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: white;
+}
+
+.hero-text p {
+    font-size: 25px;
+}
+
+.hero-text h1 {
+    font-size: 65px;
+    margin: 10px 0;
+    text-shadow: 2px 3px 6px rgba(0, 0, 0, 0.6);
+}
+
+.hero-text h3 {
+    font-size: 20px;
+    font-weight: normal;
+}
+
+.hero-text button {
+    margin-top: 25px;
+    background: linear-gradient(135deg, #00b06b, #006b3c);
+    color: white;
+    border: none;
+    padding: 14px 30px;
+    border-radius: 12px;
+    font-size: 18px;
+    cursor: pointer;
+    box-shadow: 0 5px 20px rgba(0, 107, 60, 0.4);
+    transition: all 0.2s ease;
+}
+
+.hero-text button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 107, 60, 0.6);
+}
+
+.hero-text button:active {
+    transform: scale(0.96);
+}
+
+/* الأقسام والتنقل */
+.categories {
+    padding: 40px 6%;
+    text-align: center;
+}
+
+.categories h2,
+.products-section h2 {
+    font-size: 32px;
+    margin-bottom: 30px;
+    color: #006b3c;
+}
+
+.category-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.category-container button {
+    background: white;
+    border: 1px solid #e0e0e0;
+    padding: 12px 22px;
+    border-radius: 12px;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+    transition: all 0.2s ease-in-out;
+}
+
+.category-container button:hover {
+    background: #e8f5e9;
+    border-color: #006b3c;
+    color: #006b3c;
+    box-shadow: 0 4px 15px rgba(0, 107, 60, 0.15);
+}
+
+/* زر القسم المحدد حالياً (النشط) مع توهج */
+.category-container button.active {
+    background: linear-gradient(135deg, #006b3c, #004d2a) !important;
+    color: white !important;
+    border-color: #006b3c !important;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(0, 107, 60, 0.35) !important;
+}
+
+/* المنتجات */
+.products-section {
+    padding: 20px 3% 70px;
+}
+
+.products-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 25px;
+}
+
+/* بطاقة المنتج الفخمة مع إضاءة خفيفة عند اللمس */
+.product-card {
+    background: white;
+    border-radius: 16px;
+    padding: 15px;
+    text-align: center;
+    border: 1px solid rgba(0, 107, 60, 0.08);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.product-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0, 107, 60, 0.18);
+    border-color: rgba(0, 107, 60, 0.3);
+}
+
+.product-image {
+    width: 100%;
+    height: 230px;
+    object-fit: contain;
+    border-radius: 12px;
+    background: #fafafa;
+}
+
+.product-card h3 {
+    margin-top: 15px;
+    font-size: 20px;
+}
+
+.price {
+    color: #008f4c;
+    font-size: 24px;
+    font-weight: bold;
+    margin: 10px;
+}
+
+.available {
+    color: #168642;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+/* زر القلب (المفضلة) أعلى صورة المنتج */
+.fav-btn {
+    transition: transform 0.15s ease;
+}
+
+.fav-btn:hover {
+    transform: scale(1.15);
+}
+
+.fav-btn:active {
+    transform: scale(0.9);
+}
+
+/* ويدجت التقييم بالنجوم */
+.rating-widget {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.rating-stars {
+    letter-spacing: 2px;
+    cursor: pointer;
+}
+
+.rating-stars span[data-star] {
+    transition: color 0.15s, transform 0.15s;
+    color: #ccc;
+}
+
+.rating-stars span[data-star]:hover {
+    transform: scale(1.15);
+}
+
+.rating-avg-text {
+    font-size: 13px;
+    color: #888;
+}
+
+/* زر الإضافة للسلة (مضيء وناعم) */
+.add-button {
+    width: 100%;
+    background: linear-gradient(135deg, #00b06b, #006b3c);
+    color: white;
+    border: none;
+    padding: 13px;
+    border-radius: 99px;
+    font-size: 17px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 107, 60, 0.3);
+    transition: all 0.2s ease;
+}
+
+.add-button:hover {
+    box-shadow: 0 6px 20px rgba(0, 107, 60, 0.5);
+}
+
+.add-button:active {
+    transform: scale(0.95);
+}
+
+/* ==================== السلة والنماذج المعدلة ==================== */
+
+.cart {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+}
+
+.cart-box {
+    background: white;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 25px 20px;
+    border-radius: 20px;
+    position: relative;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    text-align: right;
+}
+
+.close {
+    position: absolute;
+    left: 15px;
+    top: 15px;
+    border: none;
+    background: #f0f0f0;
+    color: #333;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+
+.close:hover {
+    background: #e0e0e0;
+}
+
+.cart-box h2 {
+    color: #006b3c;
+    margin-bottom: 15px;
+    font-size: 22px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 10px;
+}
+
+#cart-items {
+    max-height: 150px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding-left: 5px;
+}
+
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed #eee;
+    font-size: 15px;
+}
+
+.cart-item button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.total-price {
+    background: #e8f5e9;
+    color: #006b3c;
+    padding: 12px 15px;
+    border-radius: 12px;
+    margin: 15px 0;
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* نموذج إدخال البيانات داخل السلة */
+.checkout-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 15px 0;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #444;
+}
+
+.checkout-form input,
+.checkout-form select,
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: #fafafa;
+    box-sizing: border-box;
+}
+
+.checkout-form input:focus,
+.checkout-form select:focus,
+.form-group input:focus,
+.form-group select:focus {
+    border-color: #006b3c;
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(0, 107, 60, 0.15);
+}
+
+/* زر تحديد الموقع عبر GPS */
+.btn-gps {
+    background: #e8f5e9;
+    color: #006b3c;
+    border: 1px dashed #006b3c;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-gps:hover {
+    background: #006b3c;
+    color: white;
+}
+
+#location-status {
+    font-size: 13px;
+    margin-top: 4px;
+    font-weight: bold;
+}
+
+/* أزرار الطلب الفخمة */
+.order-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.order-button {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.order-button:active {
+    transform: scale(0.97);
+}
+
+.btn-telegram {
+    background: linear-gradient(135deg, #0099e5, #0077b5);
+    box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3);
+}
+
+.btn-whatsapp {
+    background: linear-gradient(135deg, #2ecc71, #25D366);
+    box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+}
+
+.order-button:hover {
+    opacity: 0.95;
+    transform: translateY(-1px);
+}
+
+/* ==================== مودالات تسجيل الدخول / التتبع / سجل الطلبات ==================== */
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    z-index: 2100;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+}
+
+.modal-box {
+    background: #fff;
+    width: 100%;
+    max-width: 420px;
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 25px 20px;
+    border-radius: 20px;
+    position: relative;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    text-align: right;
+}
+
+.modal-box h2 {
+    color: #006b3c;
+    margin-bottom: 15px;
+    font-size: 22px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 10px;
+}
+
+.auth-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.auth-tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #006b3c;
+    background: #fff;
+    color: #006b3c;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.auth-tab-btn.active {
+    background: linear-gradient(135deg, #006b3c, #004d2a);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(0, 107, 60, 0.3);
+}
+
+.auth-tab-content .order-button {
+    margin-top: 10px;
+}
+
+/* أزرار تسجيل الدخول عبر Google / Facebook */
+.social-login-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.social-btn {
+    width: 100%;
+    padding: 11px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+    border: 1px solid #ddd;
+}
+
+.social-btn .social-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 13px;
+    color: #fff;
+}
+
+.btn-google {
+    background: #fff;
+    color: #333;
+}
+
+.btn-google .social-icon {
+    background: #db4437;
+}
+
+.btn-google:hover {
+    background: #f7f7f7;
+}
+
+.btn-facebook {
+    background: #1877f2;
+    color: #fff;
+    border-color: #1877f2;
+}
+
+.btn-facebook .social-icon {
+    background: #fff;
+    color: #1877f2;
+}
+
+.btn-facebook:hover {
+    opacity: 0.92;
+}
+
+.social-btn:active {
+    transform: scale(0.97);
+}
+
+/* فاصل "أو" بين طرق تسجيل الدخول */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+    margin: 14px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid #eee;
+}
+
+.auth-divider span {
+    padding: 0 10px;
+}
+
+/* بطاقات سجل الطلبات وخطوات التتبع */
+#orders-history-list > div {
+    border: 1px solid #eee;
+    border-radius: 14px;
+    padding: 12px;
+    margin-bottom: 12px;
+    text-align: right;
+    background: #fafafa;
+}
+
+#orders-history-list button {
+    background: #e8f5e9;
+    color: #006b3c;
+    border: 1px solid #006b3c;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#orders-history-list button:hover {
+    background: #006b3c;
+    color: #fff;
+}
+
+#tracking-steps > div {
+    border-radius: 10px;
+    padding: 8px 10px;
+}
+
+/* تقييم الدكان بالفوتر */
+.store-rating-box {
+    margin: 15px 0;
+}
+
+.store-rating-stars {
+    cursor: pointer;
+    font-size: 26px;
+    letter-spacing: 4px;
+}
+
+.store-rating-stars span[data-star] {
+    transition: transform 0.15s;
+}
+
+.store-rating-stars span[data-star]:hover {
+    transform: scale(1.2);
+}
+
+.store-rating-text {
+    font-size: 13px;
+    opacity: 0.85;
+    margin-top: 4px;
+}
+
+/* إشعارات خفيفة (Toast) بدل alert */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    pointer-events: none;
+}
+
+.toast-msg {
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 14px;
+    opacity: 0;
+    transform: translateY(15px);
+    transition: all 0.25s ease;
+    white-space: nowrap;
+}
+
+.toast-msg.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* خط زمني متحرك لتتبع الطلب */
+.order-timeline {
+    padding: 10px 5px 5px;
+}
+
+.timeline-track {
+    position: relative;
+    height: 6px;
+    background: #eee;
+    border-radius: 10px;
+    margin: 10px 10px 25px;
+}
+
+.timeline-progress {
+    position: absolute;
+    top: 0; right: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #00b06b, #006b3c);
+    border-radius: 10px;
+    transition: width 0.6s ease;
+}
+
+.timeline-truck {
+    position: absolute;
+    top: -14px;
+    transform: translateX(50%);
+    font-size: 20px;
+    transition: left 0.6s ease;
+    animation: bounce-truck 1s infinite alternate;
+}
+
+@keyframes bounce-truck {
+    from { transform: translateX(50%) translateY(0); }
+    to { transform: translateX(50%) translateY(-4px); }
+}
+
+.timeline-steps {
+    display: flex;
+    justify-content: space-between;
+    text-align: center;
+}
+
+.timeline-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #999;
+}
+
+.timeline-dot {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.4s ease;
+}
+
+.timeline-step.done .timeline-dot {
+    background: #006b3c;
+    filter: grayscale(0);
+}
+
+.timeline-step.active .timeline-dot {
+    background: linear-gradient(135deg, #00b06b, #006b3c);
+    box-shadow: 0 0 0 6px rgba(0, 107, 60, 0.15);
+    animation: pulse-dot 1.2s infinite;
+}
+
+@keyframes pulse-dot {
+    0% { box-shadow: 0 0 0 4px rgba(0, 107, 60, 0.15); }
+    50% { box-shadow: 0 0 0 9px rgba(0, 107, 60, 0.08); }
+    100% { box-shadow: 0 0 0 4px rgba(0, 107, 60, 0.15); }
+}
+
+.timeline-step.done .timeline-label,
+.timeline-step.active .timeline-label {
+    color: #006b3c;
+    font-weight: bold;
+}
+
+/* دخول خفيف لبطاقات المنتجات */
+.product-card {
+    animation: card-fade-in 0.35s ease both;
+}
+
+@keyframes card-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* الفوتر */
+footer {
+    background: linear-gradient(135deg, #006b3c, #004d2a);
+    color: white;
+    text-align: center;
+    padding: 35px;
+    line-height: 2;
+}
+
+/* ==================== تصميم دائرة التحميل (Loader) ==================== */
+.loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    grid-column: 1 / -1;
+    padding: 40px;
+    text-align: center;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #006b3c;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ==================== تصميم الهواتف (منتجين جنب بعض مع لمسة تفاعلية) ==================== */
+@media (max-width: 700px) {
+    header {
+        height: auto;
+        padding: 10px 12px;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .logo {
+        font-size: 22px;
+    }
+
+    nav {
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    nav a {
+        font-size: 14px;
+    }
+
+    header > div {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px !important;
+    }
+
+    .cart-button {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .account-button {
+        padding: 7px 12px;
+        font-size: 12px;
+    }
+
+    #account-name-label {
+        font-size: 12px;
+    }
+
+    .hero-text h1 {
+        font-size: 28px;
+    }
+
+    .hero-text p {
+        font-size: 18px;
+    }
+
+    .hero-text h3 {
+        font-size: 14px;
+    }
+
+    .hero {
+        height: 220px;
+    }
+
+    .splash-logo {
+        font-size: 50px;
+    }
+
+    .splash-title {
+        font-size: 24px;
+    }
+
+    .products-section {
+        padding: 15px 10px 50px;
+    }
+
+    .products-container {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+
+    .product-card {
+        padding: 10px !important;
+        border-radius: 14px;
+    }
+
+    .product-image {
+        height: 120px !important;
+        border-radius: 10px;
+    }
+
+    .product-card h3 {
+        font-size: 13px !important;
+        margin-top: 8px;
+    }
+
+    .price {
+        font-size: 15px !important;
+        margin: 6px 0 !important;
+    }
+
+    .available {
+        font-size: 11px !important;
+        margin-bottom: 8px;
+    }
+
+    .add-button {
+        padding: 8px !important;
+        font-size: 12px !important;
+        border-radius: 8px;
+    }
+
+    .rating-avg-text {
+        font-size: 11px;
+    }
+
+    .cart {
+        padding: 10px;
+    }
+
+    .cart-box {
+        max-width: 100%;
+        max-height: 85vh;
+        padding: 20px 15px;
+        border-radius: 18px;
+    }
+
+    .modal-box {
+        max-width: 100%;
+        max-height: 85vh;
+        padding: 20px 15px;
+        border-radius: 18px;
+    }
+}
