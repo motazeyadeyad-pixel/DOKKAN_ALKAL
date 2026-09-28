@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دكان الخال</title>
+    <meta name="description" content="دكان الخال - منتجات متنوعة، أسعار مناسبة، وخدمة توصيل سريعة">
+    <meta name="theme-color" content="#006b3c">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="دكان الخال">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="stylesheet" href="style.css">
     <script>
         /* تطبيق إعدادات الزبون المحفوظة مبكراً (بدون وميض) */
@@ -325,23 +334,27 @@
 
             <!-- عن الدكان (عدّل البيانات هون) -->
             <div class="menu-section">
-                <div class="menu-section-title">🏪  معلومات عن الدكان </div>
+                <div class="menu-section-title">🏪 عن الدكان</div>
                 <div class="shop-info">
-                    <b>📍 الموقع:</b> شارع المقبرة تحت الصحة القديمة<br>
-                    <b>🕗 الدوام:</b> يومياً من 9 صباحاً حتى 12 مساءً<br>
+                    <b>📍 الموقع:</b> اكتب عنوان الدكان هون<br>
+                    <b>🕗 الدوام:</b> يومياً من 8 صباحاً حتى 11 مساءً<br>
                     <b>🛵 التوصيل:</b> 0.15 دينار للمنزل
                 </div>
 
                 <!-- غيّر الروابط والأرقام هون -->
-                <a class="menu-link" href="https://maps.app.goo.gl/aQL9YjdPMSoTJGqt6" target="_blank" rel="noopener">📍 موقع الدكان على الخريطة</a>
-                <a class="menu-link" href="tel:+962775279117">📞 اتصل بالدكان</a>
-                <a class="menu-link whatsapp" href="https://wa.me/962775279117" target="_blank" rel="noopener">💬 راسلنا على واتساب</a>
+                <a class="menu-link" href="https://www.google.com/maps/search/?api=1&query=Amman" target="_blank" rel="noopener">📍 موقع الدكان على الخريطة</a>
+                <a class="menu-link" href="tel:+962700000000">📞 اتصل بالدكان</a>
+                <a class="menu-link whatsapp" href="https://wa.me/962700000000" target="_blank" rel="noopener">💬 راسلنا على واتساب</a>
             </div>
 
             <!-- أدوات -->
             <div class="menu-section">
                 <div class="menu-section-title">🔗 المزيد</div>
                 <button type="button" class="menu-link" onclick="shareSite()">📤 شارك الموقع مع أصدقائك</button>
+                <button type="button" id="install-btn" class="menu-link" style="display:none;" onclick="installApp()">📲 ثبّت التطبيق على موبايلك</button>
+                <div id="ios-hint" class="shop-info" style="display:none;">
+                    على الآيفون: دوس زر المشاركة <b>⬆️</b> بأسفل Safari، ثم اختر <b>"إضافة إلى الشاشة الرئيسية"</b>.
+                </div>
                 <button type="button" class="menu-link" onclick="closeSideMenu(); document.getElementById('products').scrollIntoView({behavior:'smooth'});">🛍️ تصفح المنتجات</button>
             </div>
         </div>
@@ -351,7 +364,7 @@
             <div class="dev-avatar">👨‍💻</div>
             <div>
                 <small>تصميم وتطوير</small>
-                <strong id="dev-name">معتز اياد عطا </strong>
+                <strong id="dev-name">اكتب اسمك هنا</strong>
                 <em>© 2026 جميع الحقوق محفوظة</em>
             </div>
         </div>
@@ -487,6 +500,46 @@
             document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSideMenu(); });
 
             apply();
+        })();
+    </script>
+
+    <!-- سكربت تثبيت التطبيق (PWA) -->
+    <script>
+        (function () {
+            var deferredPrompt = null;
+            var isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+            var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+            var btn = document.getElementById("install-btn");
+
+            if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+                window.addEventListener("load", function () {
+                    navigator.serviceWorker.register("sw.js").catch(function () {});
+                });
+            }
+
+            if (!isStandalone) {
+                window.addEventListener("beforeinstallprompt", function (e) {
+                    e.preventDefault();
+                    deferredPrompt = e;
+                    btn.style.display = "flex";
+                });
+                if (isIOS) btn.style.display = "flex";
+            }
+
+            window.addEventListener("appinstalled", function () {
+                btn.style.display = "none";
+                deferredPrompt = null;
+            });
+
+            window.installApp = function () {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.finally(function () { deferredPrompt = null; btn.style.display = "none"; });
+                } else if (isIOS) {
+                    var hint = document.getElementById("ios-hint");
+                    hint.style.display = hint.style.display === "none" ? "block" : "none";
+                }
+            };
         })();
     </script>
 
