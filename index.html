@@ -4,37 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دكان الخال</title>
-    <meta name="description" content="دكان الخال - منتجات متنوعة، أسعار مناسبة، وخدمة توصيل سريعة">
-    <meta name="theme-color" content="#006b3c">
+
+    <!-- تثبيت الموقع كتطبيق (PWA) -->
     <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#006b3c">
     <link rel="icon" type="image/png" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="دكان الخال">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
     <link rel="stylesheet" href="style.css">
-    <script>
-        /* تطبيق إعدادات الزبون المحفوظة مبكراً (بدون وميض) */
-        try {
-            var _s = JSON.parse(localStorage.getItem("dukkan_settings") || "{}");
-            var _r = document.documentElement;
-            if (_s.dark) _r.classList.add("dark");
-            if (_s.noMotion) _r.classList.add("no-motion");
-            if (_s.large) _r.classList.add("text-large");
-        } catch (e) {}
-    </script>
 </head>
 <body>
-
-    <!-- شاشة الترحيب (تظهر أول ما يفتح الموقع) -->
-    <div id="splash-screen">
-        <div class="splash-logo">🛒</div>
-        <div class="splash-greeting">أهلاً وسهلاً بك في</div>
-        <div class="splash-brand">دكان الخال</div>
-        <div class="splash-subtitle">منتجات متنوعة - أسعار مناسبة - خدمة سريعة</div>
-        <div class="splash-progress"><div class="splash-progress-bar"></div></div>
-    </div>
 
     <!-- القائمة العلوية -->
     <header>
@@ -46,7 +29,7 @@
             <a href="#">الرئيسية</a>
             <a href="#products">المنتجات</a>
             <a href="#categories">الأقسام</a>
-            <a href="#" onclick="openSideMenu(); return false;">اتصل بنا</a>
+            <a href="#">اتصل بنا</a>
         </nav>
 
         <div style="display:flex; align-items:center; gap:10px;">
@@ -74,8 +57,8 @@
 
     <!-- الأقسام -->
     <section id="categories" class="categories">
-        <h2 class="reveal">الأقسام</h2>
-        <div class="category-container reveal-stagger">
+        <h2>الأقسام</h2>
+        <div class="category-container">
             <button class="active" onclick="filterByCategory('الكل', this)">🛒 الكل</button>
             <button onclick="filterByCategory('مواد غذائية', this)">🥫 مواد غذائية</button>
             <button onclick="filterByCategory('سكاكر', this)">🍬 سكاكر وحلويات</button>
@@ -88,10 +71,10 @@
 
     <!-- المنتجات وشريط البحث -->
     <section id="products" class="products-section">
-        <h2 class="reveal">منتجاتنا</h2>
+        <h2>منتجاتنا</h2>
 
         <!-- شريط البحث المباشر -->
-        <div class="search-box reveal" style="max-width: 500px; margin: 0 auto 25px auto; display: flex; gap: 8px; padding: 0 10px;">
+        <div class="search-box" style="max-width: 500px; margin: 0 auto 25px auto; display: flex; gap: 8px; padding: 0 10px;">
             <input 
                 type="text" 
                 id="search-input" 
@@ -285,90 +268,19 @@
         <h3>دكان الخال</h3>
         <p>كل ما تحتاجه في مكان واحد</p>
 
-        <div class="store-rating-box reveal">
+        <div class="store-rating-box">
             <p>قيّم تجربتك معنا</p>
             <div id="store-rating-stars" class="store-rating-stars">☆☆☆☆☆</div>
             <div id="store-rating-text" class="store-rating-text">لا يوجد تقييم بعد</div>
         </div>
 
+        <button id="install-btn" onclick="installApp()"
+            style="display:none; margin:10px auto 15px; background:#fff; color:#006b3c; border:none; padding:11px 22px; border-radius:12px; font-weight:bold; font-size:15px; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+            📲 ثبّت الدكان كتطبيق على موبايلك
+        </button>
+
         <p>© 2026 دكان الخال</p>
     </footer>
-
-    <!-- ==================== زر الثلاث نقاط والقائمة الجانبية ==================== -->
-    <button class="menu-fab" id="menu-fab" onclick="toggleSideMenu()" aria-label="القائمة والإعدادات">⋮</button>
-    <div id="side-menu-overlay" class="side-menu-overlay" onclick="closeSideMenu()"></div>
-
-    <aside id="side-menu" class="side-menu" aria-hidden="true">
-        <div class="side-menu-head">
-            <div>
-                <h3>🛒 دكان الخال</h3>
-                <p>القائمة والإعدادات</p>
-            </div>
-            <button class="side-menu-close" onclick="closeSideMenu()" aria-label="إغلاق">×</button>
-        </div>
-
-        <div class="side-menu-body">
-
-            <!-- الإعدادات -->
-            <div class="menu-section">
-                <div class="menu-section-title">⚙️ الإعدادات</div>
-
-                <div class="menu-row">
-                    <span>🌙 الوضع المظلم<small>مريح للعين بالليل</small></span>
-                    <label class="switch"><input type="checkbox" id="set-dark" onchange="updateSetting('dark', this.checked)"><span class="slider"></span></label>
-                </div>
-
-                <div class="menu-row">
-                    <span>✨ تقليل الحركة<small>إيقاف التأثيرات والانيميشن</small></span>
-                    <label class="switch"><input type="checkbox" id="set-motion" onchange="updateSetting('noMotion', this.checked)"><span class="slider"></span></label>
-                </div>
-
-                <div class="menu-row">
-                    <span>🔠 حجم الخط</span>
-                    <div class="seg">
-                        <button type="button" id="font-normal" onclick="updateSetting('large', false)">عادي</button>
-                        <button type="button" id="font-large" onclick="updateSetting('large', true)">كبير</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- عن الدكان (عدّل البيانات هون) -->
-            <div class="menu-section">
-                <div class="menu-section-title">🏪 عن الدكان</div>
-                <div class="shop-info">
-                    <b>📍 الموقع:</b> اكتب عنوان الدكان هون<br>
-                    <b>🕗 الدوام:</b> يومياً من 8 صباحاً حتى 11 مساءً<br>
-                    <b>🛵 التوصيل:</b> 0.15 دينار للمنزل
-                </div>
-
-                <!-- غيّر الروابط والأرقام هون -->
-                <a class="menu-link" href="https://www.google.com/maps/search/?api=1&query=Amman" target="_blank" rel="noopener">📍 موقع الدكان على الخريطة</a>
-                <a class="menu-link" href="tel:+962700000000">📞 اتصل بالدكان</a>
-                <a class="menu-link whatsapp" href="https://wa.me/962700000000" target="_blank" rel="noopener">💬 راسلنا على واتساب</a>
-            </div>
-
-            <!-- أدوات -->
-            <div class="menu-section">
-                <div class="menu-section-title">🔗 المزيد</div>
-                <button type="button" class="menu-link" onclick="shareSite()">📤 شارك الموقع مع أصدقائك</button>
-                <button type="button" id="install-btn" class="menu-link" style="display:none;" onclick="installApp()">📲 ثبّت التطبيق على موبايلك</button>
-                <div id="ios-hint" class="shop-info" style="display:none;">
-                    على الآيفون: دوس زر المشاركة <b>⬆️</b> بأسفل Safari، ثم اختر <b>"إضافة إلى الشاشة الرئيسية"</b>.
-                </div>
-                <button type="button" class="menu-link" onclick="closeSideMenu(); document.getElementById('products').scrollIntoView({behavior:'smooth'});">🛍️ تصفح المنتجات</button>
-            </div>
-        </div>
-
-        <!-- بطاقة منشئ الموقع (غيّر الاسم هون) -->
-        <div class="dev-card">
-            <div class="dev-avatar">👨‍💻</div>
-            <div>
-                <small>تصميم وتطوير</small>
-                <strong id="dev-name">اكتب اسمك هنا</strong>
-                <em>© 2026 جميع الحقوق محفوظة</em>
-            </div>
-        </div>
-    </aside>
 
     <div id="toast-container"></div>
 
@@ -383,164 +295,47 @@
     <!-- ملف السكربت الخاص بالموقع -->
     <script src="script.js"></script>
 
-    <!-- سكربت شاشة الترحيب: يظهر الموقع بحركة بعد 3 ثواني عشان الزبون يقرأ اسم الدكان -->
+    <!-- تثبيت التطبيق (PWA) -->
     <script>
-        (function () {
-            var MIN_SPLASH_TIME = document.documentElement.classList.contains("no-motion") ? 200 : 3000; // مدة ظهور شاشة الترحيب بالميلي ثانية (لازم تطابق CSS)
-            var startTime = Date.now();
-
-            function revealSite() {
-                var splash = document.getElementById("splash-screen");
-                document.body.classList.add("revealed");
-                if (splash) {
-                    splash.classList.add("hide");
-                    setTimeout(function () {
-                        splash.style.display = "none";
-                    }, 700);
-                }
-            }
-
-            function onReady() {
-                var elapsed = Date.now() - startTime;
-                var remaining = Math.max(MIN_SPLASH_TIME - elapsed, 0);
-                setTimeout(revealSite, remaining);
-            }
-
-            if (document.readyState === "loading") {
-                document.addEventListener("DOMContentLoaded", onReady);
-            } else {
-                onReady();
-            }
-
-            // شبكة أمان: لا نخلي الزبون عالق وراء شاشة الترحيب لأي سبب
-            setTimeout(revealSite, 6000);
-        })();
-    </script>
-
-    <!-- سكربت حركة ظهور الأقسام عند التمرير إليها -->
-    <script>
-        (function () {
-            var revealEls = document.querySelectorAll(".reveal, .reveal-stagger");
-
-            if (!("IntersectionObserver" in window)) {
-                revealEls.forEach(function (el) { el.classList.add("in-view"); });
-                return;
-            }
-
-            var observer = new IntersectionObserver(function (entries) {
-                entries.forEach(function (entry) {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add("in-view");
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, { threshold: 0.15 });
-
-            revealEls.forEach(function (el) { observer.observe(el); });
-        })();
-    </script>
-
-    <!-- سكربت القائمة الجانبية والإعدادات -->
-    <script>
-        (function () {
-            var KEY = "dukkan_settings";
-            var root = document.documentElement;
-            var state = { dark: false, noMotion: false, large: false };
-
-            try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
-
-            function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
-
-            function apply() {
-                root.classList.toggle("dark", !!state.dark);
-                root.classList.toggle("no-motion", !!state.noMotion);
-                root.classList.toggle("text-large", !!state.large);
-                document.getElementById("set-dark").checked = !!state.dark;
-                document.getElementById("set-motion").checked = !!state.noMotion;
-                document.getElementById("font-normal").classList.toggle("on", !state.large);
-                document.getElementById("font-large").classList.toggle("on", !!state.large);
-            }
-
-            function toast(msg) {
-                var box = document.getElementById("toast-container");
-                var el = document.createElement("div");
-                el.className = "toast-msg";
-                el.textContent = msg;
-                box.appendChild(el);
-                setTimeout(function () { el.classList.add("show"); }, 20);
-                setTimeout(function () { el.classList.remove("show"); setTimeout(function () { el.remove(); }, 300); }, 2200);
-            }
-
-            window.updateSetting = function (key, value) { state[key] = value; save(); apply(); };
-
-            window.openSideMenu = function () {
-                document.getElementById("side-menu").classList.add("open");
-                document.getElementById("side-menu-overlay").classList.add("open");
-                document.getElementById("side-menu").setAttribute("aria-hidden", "false");
-            };
-            window.closeSideMenu = function () {
-                document.getElementById("side-menu").classList.remove("open");
-                document.getElementById("side-menu-overlay").classList.remove("open");
-                document.getElementById("side-menu").setAttribute("aria-hidden", "true");
-            };
-            window.toggleSideMenu = function () {
-                if (document.getElementById("side-menu").classList.contains("open")) closeSideMenu();
-                else openSideMenu();
-            };
-
-            window.shareSite = function () {
-                var data = { title: "دكان الخال", text: "تسوّق من دكان الخال 🛒", url: location.href };
-                if (navigator.share) {
-                    navigator.share(data).catch(function () {});
-                } else if (navigator.clipboard) {
-                    navigator.clipboard.writeText(location.href).then(function () { toast("تم نسخ رابط الموقع ✅"); });
-                }
-            };
-
-            document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSideMenu(); });
-
-            apply();
-        })();
-    </script>
-
-    <!-- سكربت تثبيت التطبيق (PWA) -->
-    <script>
-        (function () {
-            var deferredPrompt = null;
-            var isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-            var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-            var btn = document.getElementById("install-btn");
-
-            if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
-                window.addEventListener("load", function () {
-                    navigator.serviceWorker.register("sw.js").catch(function () {});
-                });
-            }
-
-            if (!isStandalone) {
-                window.addEventListener("beforeinstallprompt", function (e) {
-                    e.preventDefault();
-                    deferredPrompt = e;
-                    btn.style.display = "flex";
-                });
-                if (isIOS) btn.style.display = "flex";
-            }
-
-            window.addEventListener("appinstalled", function () {
-                btn.style.display = "none";
-                deferredPrompt = null;
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("sw.js").catch(() => {});
             });
+        }
 
-            window.installApp = function () {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.finally(function () { deferredPrompt = null; btn.style.display = "none"; });
-                } else if (isIOS) {
-                    var hint = document.getElementById("ios-hint");
-                    hint.style.display = hint.style.display === "none" ? "block" : "none";
-                }
-            };
-        })();
+        let deferredInstallPrompt = null;
+        const installBtn = document.getElementById("install-btn");
+        const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+        // أندرويد / كروم: الزر بيظهر لما المتصفح يجهز التثبيت
+        window.addEventListener("beforeinstallprompt", (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            if (!isStandalone) installBtn.style.display = "block";
+        });
+
+        // آيفون: ما في نافذة تثبيت تلقائية، فبنعرض الزر ونشرحله الخطوات
+        if (isIOS && !isStandalone) installBtn.style.display = "block";
+
+        window.addEventListener("appinstalled", () => {
+            installBtn.style.display = "none";
+            deferredInstallPrompt = null;
+        });
+
+        function installApp() {
+            if (deferredInstallPrompt) {
+                deferredInstallPrompt.prompt();
+                deferredInstallPrompt.userChoice.finally(() => {
+                    deferredInstallPrompt = null;
+                    installBtn.style.display = "none";
+                });
+            } else if (isIOS) {
+                alert("لتثبيت الدكان على الآيفون:\n1) دوس زر المشاركة ⬆️ بأسفل سفاري\n2) اختار «إضافة إلى الشاشة الرئيسية»\n3) دوس «إضافة»");
+            } else {
+                alert("من قائمة المتصفح ⋮ اختار «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»");
+            }
+        }
     </script>
 
     <!-- سكربت بسيط لتبديل تبويبات مودال تسجيل الدخول وزر الحساب -->
@@ -564,6 +359,8 @@
             }
         }
 
+        // لما يضغط الزبون على زر "تسجيل الدخول" بالهيدر: لو ما مسجل دخول يفتح المودال،
+        // لو مسجل دخول يفتح له خيارات الحساب (سجل الطلبات / تسجيل خروج)
         function handleAccountClick() {
             if (typeof currentUser !== "undefined" && currentUser) {
                 const modal = document.getElementById("auth-modal");

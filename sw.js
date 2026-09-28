@@ -1,42 +1,48 @@
 // Service Worker - دكان الخال
-// يخزّن ملفات الواجهة فقط. بيانات Firebase والصور والطلبات دايماً من النت.
-const CACHE_NAME = "dukkan-shell-v1";
-const SHELL = ["./", "./index.html", "./style.css", "./script.js", "./manifest.json",
-               "./icons/icon-192.png", "./icons/icon-512.png"];
+// استراتيجية "الشبكة أولاً": دايماً بيجيب أحدث نسخة من الإنترنت،
+// والنسخة المخزنة بتنستخدم بس لو ما في إنترنت. هيك التعديلات بتوصل فوراً بدون مشاكل كاش.
 
-self.addEventListener("install", (e) => {
-    e.waitUntil(
+const CACHE_NAME = "dokan-v1";
+const SHELL = ["./", "./index.html", "./style.css", "./script.js", "./icons/icon-192.png"];
+
+self.addEventListener("install", (event) => {
+    event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((c) => Promise.all(SHELL.map((u) => c.add(u).catch(() => {}))))
-            .then(() => self.skipWaiting())
+            .then((cache) => cache.addAll(SHELL))
+            .catch(() => {})
     );
+    self.skipWaiting();
 });
 
-self.addEventListener("activate", (e) => {
-    e.waitUntil(
+self.addEventListener("activate", (event) => {
+    event.waitUntil(
         caches.keys()
             .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
             .then(() => self.clients.claim())
     );
 });
 
-self.addEventListener("fetch", (e) => {
-    const req = e.request;
-    if (req.method !== "GET") return;
+self.addEventListener("fetch", (event) => {
+    const req = event.request;
     const url = new URL(req.url);
-    if (url.origin !== self.location.origin) return; // Firebase / Cloudinary / Telegram: مباشرة من النت
 
-    // النت أولاً (عشان التحديثات توصل فوراً)، والنسخة المخزنة إذا ما في نت
-    e.respondWith(
-        fetch(req).then((res) => {
-            const path = "." + url.pathname.replace(/^.*\/(?=[^/]*$)/, "/");
-            if (res.ok && SHELL.some((s) => s.endsWith(url.pathname.split("/").pop()) && s !== "./")) {
-                const copy = res.clone();
-                caches.open(CACHE_NAME).then((c) => c.put(req, copy));
-            }
-            return res;
-        }).catch(() =>
-            caches.match(req).then((hit) => hit || (req.mode === "navigate" ? caches.match("./index.html") : undefined))
-        )
+    // نتعامل بس مع طلبات GET من نفس الموقع (Firebase / Cloudinary / الخطوط تمر مباشرة)
+    if (req.method !== "GET" || url.origin !== self.location.origin) return;
+
+    // لوحات الإدارة وتتبع الطلبات ما بتنخزن أبداً
+    if (url.pathname.includes("admin") || url.pathname.includes("orders-status")) return;
+
+    event.respondWith(
+        fetch(req)
+            .then((res) => {
+                if (res && res.status === 200) {
+                    const copy = res.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+                }
+                return res;
+            })
+            .catch(() =>
+                caches.match(req).then((cached) => cached || (req.mode === "navigate" ? caches.match("./index.html") : undefined))
+            )
     );
 });
