@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دكان الخال</title>
     <link rel="stylesheet" href="style.css">
+    <script>
+        /* تطبيق إعدادات الزبون المحفوظة مبكراً (بدون وميض) */
+        try {
+            var _s = JSON.parse(localStorage.getItem("dukkan_settings") || "{}");
+            var _r = document.documentElement;
+            if (_s.dark) _r.classList.add("dark");
+            if (_s.noMotion) _r.classList.add("no-motion");
+            if (_s.large) _r.classList.add("text-large");
+        } catch (e) {}
+    </script>
 </head>
 <body>
 
@@ -27,7 +37,7 @@
             <a href="#">الرئيسية</a>
             <a href="#products">المنتجات</a>
             <a href="#categories">الأقسام</a>
-            <a href="#">اتصل بنا</a>
+            <a href="#" onclick="openSideMenu(); return false;">اتصل بنا</a>
         </nav>
 
         <div style="display:flex; align-items:center; gap:10px;">
@@ -275,6 +285,78 @@
         <p>© 2026 دكان الخال</p>
     </footer>
 
+    <!-- ==================== زر الثلاث نقاط والقائمة الجانبية ==================== -->
+    <button class="menu-fab" id="menu-fab" onclick="toggleSideMenu()" aria-label="القائمة والإعدادات">⋮</button>
+    <div id="side-menu-overlay" class="side-menu-overlay" onclick="closeSideMenu()"></div>
+
+    <aside id="side-menu" class="side-menu" aria-hidden="true">
+        <div class="side-menu-head">
+            <div>
+                <h3>🛒 دكان الخال</h3>
+                <p>القائمة والإعدادات</p>
+            </div>
+            <button class="side-menu-close" onclick="closeSideMenu()" aria-label="إغلاق">×</button>
+        </div>
+
+        <div class="side-menu-body">
+
+            <!-- الإعدادات -->
+            <div class="menu-section">
+                <div class="menu-section-title">⚙️ الإعدادات</div>
+
+                <div class="menu-row">
+                    <span>🌙 الوضع المظلم<small>مريح للعين بالليل</small></span>
+                    <label class="switch"><input type="checkbox" id="set-dark" onchange="updateSetting('dark', this.checked)"><span class="slider"></span></label>
+                </div>
+
+                <div class="menu-row">
+                    <span>✨ تقليل الحركة<small>إيقاف التأثيرات والانيميشن</small></span>
+                    <label class="switch"><input type="checkbox" id="set-motion" onchange="updateSetting('noMotion', this.checked)"><span class="slider"></span></label>
+                </div>
+
+                <div class="menu-row">
+                    <span>🔠 حجم الخط</span>
+                    <div class="seg">
+                        <button type="button" id="font-normal" onclick="updateSetting('large', false)">عادي</button>
+                        <button type="button" id="font-large" onclick="updateSetting('large', true)">كبير</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- عن الدكان (عدّل البيانات هون) -->
+            <div class="menu-section">
+                <div class="menu-section-title">🏪 عن الدكان</div>
+                <div class="shop-info">
+                    <b>📍 الموقع:</b> اكتب عنوان الدكان هون<br>
+                    <b>🕗 الدوام:</b> يومياً من 8 صباحاً حتى 11 مساءً<br>
+                    <b>🛵 التوصيل:</b> 0.15 دينار للمنزل
+                </div>
+
+                <!-- غيّر الروابط والأرقام هون -->
+                <a class="menu-link" href="https://www.google.com/maps/search/?api=1&query=Amman" target="_blank" rel="noopener">📍 موقع الدكان على الخريطة</a>
+                <a class="menu-link" href="tel:+962700000000">📞 اتصل بالدكان</a>
+                <a class="menu-link whatsapp" href="https://wa.me/962700000000" target="_blank" rel="noopener">💬 راسلنا على واتساب</a>
+            </div>
+
+            <!-- أدوات -->
+            <div class="menu-section">
+                <div class="menu-section-title">🔗 المزيد</div>
+                <button type="button" class="menu-link" onclick="shareSite()">📤 شارك الموقع مع أصدقائك</button>
+                <button type="button" class="menu-link" onclick="closeSideMenu(); document.getElementById('products').scrollIntoView({behavior:'smooth'});">🛍️ تصفح المنتجات</button>
+            </div>
+        </div>
+
+        <!-- بطاقة منشئ الموقع (غيّر الاسم هون) -->
+        <div class="dev-card">
+            <div class="dev-avatar">👨‍💻</div>
+            <div>
+                <small>تصميم وتطوير</small>
+                <strong id="dev-name">اكتب اسمك هنا</strong>
+                <em>© 2026 جميع الحقوق محفوظة</em>
+            </div>
+        </div>
+    </aside>
+
     <div id="toast-container"></div>
 
     <!-- مكتبات Firebase المطلوبة -->
@@ -291,7 +373,7 @@
     <!-- سكربت شاشة الترحيب: يظهر الموقع بحركة بعد 3 ثواني عشان الزبون يقرأ اسم الدكان -->
     <script>
         (function () {
-            var MIN_SPLASH_TIME = 3000; // مدة ظهور شاشة الترحيب بالميلي ثانية (لازم تطابق CSS)
+            var MIN_SPLASH_TIME = document.documentElement.classList.contains("no-motion") ? 200 : 3000; // مدة ظهور شاشة الترحيب بالميلي ثانية (لازم تطابق CSS)
             var startTime = Date.now();
 
             function revealSite() {
@@ -342,6 +424,69 @@
             }, { threshold: 0.15 });
 
             revealEls.forEach(function (el) { observer.observe(el); });
+        })();
+    </script>
+
+    <!-- سكربت القائمة الجانبية والإعدادات -->
+    <script>
+        (function () {
+            var KEY = "dukkan_settings";
+            var root = document.documentElement;
+            var state = { dark: false, noMotion: false, large: false };
+
+            try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
+
+            function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+            function apply() {
+                root.classList.toggle("dark", !!state.dark);
+                root.classList.toggle("no-motion", !!state.noMotion);
+                root.classList.toggle("text-large", !!state.large);
+                document.getElementById("set-dark").checked = !!state.dark;
+                document.getElementById("set-motion").checked = !!state.noMotion;
+                document.getElementById("font-normal").classList.toggle("on", !state.large);
+                document.getElementById("font-large").classList.toggle("on", !!state.large);
+            }
+
+            function toast(msg) {
+                var box = document.getElementById("toast-container");
+                var el = document.createElement("div");
+                el.className = "toast-msg";
+                el.textContent = msg;
+                box.appendChild(el);
+                setTimeout(function () { el.classList.add("show"); }, 20);
+                setTimeout(function () { el.classList.remove("show"); setTimeout(function () { el.remove(); }, 300); }, 2200);
+            }
+
+            window.updateSetting = function (key, value) { state[key] = value; save(); apply(); };
+
+            window.openSideMenu = function () {
+                document.getElementById("side-menu").classList.add("open");
+                document.getElementById("side-menu-overlay").classList.add("open");
+                document.getElementById("side-menu").setAttribute("aria-hidden", "false");
+            };
+            window.closeSideMenu = function () {
+                document.getElementById("side-menu").classList.remove("open");
+                document.getElementById("side-menu-overlay").classList.remove("open");
+                document.getElementById("side-menu").setAttribute("aria-hidden", "true");
+            };
+            window.toggleSideMenu = function () {
+                if (document.getElementById("side-menu").classList.contains("open")) closeSideMenu();
+                else openSideMenu();
+            };
+
+            window.shareSite = function () {
+                var data = { title: "دكان الخال", text: "تسوّق من دكان الخال 🛒", url: location.href };
+                if (navigator.share) {
+                    navigator.share(data).catch(function () {});
+                } else if (navigator.clipboard) {
+                    navigator.clipboard.writeText(location.href).then(function () { toast("تم نسخ رابط الموقع ✅"); });
+                }
+            };
+
+            document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSideMenu(); });
+
+            apply();
         })();
     </script>
 
