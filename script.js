@@ -873,6 +873,10 @@ function getOrderData() {
     return {
         name, phone, deliveryType, address: fullAddress, itemsList,
         items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+        photos: cart.map(i => {
+            const p = allProductsList.find(x => x.id == i.id);
+            return { name: i.name, quantity: i.quantity, image: p && p.image ? String(p.image).trim() : "" };
+        }).filter(x => x.image),
         subtotal, deliveryFee, total: subtotal + deliveryFee
     };
 }
@@ -904,6 +908,33 @@ function saveOrderToFirebase(data) {
     });
 }
 
+// يرسل صور المنتجات لتيليجرام (صور صغيرة، كل صورة تحتها اسم المنتج والكمية)
+function telegramThumb(url) {
+    if (url.includes("res.cloudinary.com") && url.includes("/upload/") && !url.includes("/upload/w_")) {
+        return url.replace("/upload/", "/upload/w_300,h_300,c_fill,q_auto,f_jpg/");
+    }
+    return url;
+}
+
+async function sendOrderPhotosToTelegram(data, orderId) {
+    const photos = (data.photos || []).filter(p => /^https?:\/\//.test(p.image));
+    for (let i = 0; i < photos.length; i += 10) { // تيليجرام يسمح بـ 10 صور بالمجموعة
+        const chunk = photos.slice(i, i + 10);
+        const media = chunk.map(p => ({
+            type: "photo",
+            media: telegramThumb(p.image),
+            caption: `${p.name} x${p.quantity}`
+        }));
+        try {
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMediaGroup`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, media: media })
+            });
+        } catch (e) { console.error("تعذر إرسال الصور", e); }
+    }
+}
+
 function orderViaTelegram() {
     let data = getOrderData();
     if (!data) return;
@@ -917,6 +948,7 @@ function orderViaTelegram() {
             body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: message, parse_mode: "Markdown" })
         }).then(res => res.json()).then(res => {
             if (res.ok) {
+                sendOrderPhotosToTelegram(data, orderId); // صور المنتجات (بدون انتظار)
                 alert("تم إرسال الطلب بنجاح! رقم طلبك: " + orderId);
                 cart = []; userLocationUrl = ""; updateCart(); closeCart();
                 trackOrder(orderId);
