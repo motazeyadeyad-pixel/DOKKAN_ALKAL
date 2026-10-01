@@ -28,6 +28,11 @@
     .store-btns button { flex:1; padding:12px 6px; font-size:14px; border-radius:10px; border:2px solid #ccc; background:#f0f0f0; cursor:pointer; font-weight:bold; }
     .store-btns button.active { background:#b42318; color:#fff; border-color:#b42318; }
     .store-hint { font-size:12px; color:#888; margin-top:8px; }
+    .photo-strip { display:flex; gap:8px; overflow-x:auto; padding:4px 0 8px; margin-bottom:6px; -webkit-overflow-scrolling:touch; }
+    .photo-item { flex:0 0 auto; width:62px; text-align:center; position:relative; }
+    .photo-item img { width:56px; height:56px; object-fit:cover; border-radius:8px; background:#eee; border:1px solid #e3e3e3; display:block; margin:0 auto; }
+    .photo-item .qty { position:absolute; top:-4px; right:0; background:#006b3c; color:#fff; font-size:11px; font-weight:bold; border-radius:10px; padding:1px 6px; }
+    .photo-item .pname { font-size:10px; color:#555; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 </style>
 </head>
 <body>
@@ -126,12 +131,33 @@
                 return `
                     <div class="order-card">
                         <div class="top"><span>👤 ${escapeHTML(order.customerName || "")}</span><span>${(order.total || 0).toFixed(2)} د</span></div>
+                        ${photoStrip(order.items)}
                         <div class="items">${escapeHTML(itemsText)}</div>
                         <div class="meta">📞 ${escapeHTML(order.phone || "")} — ${date}</div>
                         <div class="status-buttons">${buttons}</div>
                     </div>`;
             }).join("");
         });
+    }
+
+    function thumbUrl(url) {
+        url = String(url || "").trim();
+        if (!/^https?:\/\//.test(url)) return "";
+        if (url.includes("res.cloudinary.com") && url.includes("/upload/") && !url.includes("/upload/w_")) {
+            return url.replace("/upload/", "/upload/w_120,h_120,c_fill,q_auto,f_auto/");
+        }
+        return url;
+    }
+
+    function photoStrip(items) {
+        const withImg = (items || []).filter(i => thumbUrl(i.image));
+        if (!withImg.length) return "";
+        return '<div class="photo-strip">' + withImg.map(i =>
+            `<div class="photo-item" title="${escapeHTML(i.name)}">
+                <span class="qty">×${escapeHTML(i.quantity)}</span>
+                <img src="${escapeHTML(thumbUrl(i.image))}" alt="" loading="lazy">
+                <div class="pname">${escapeHTML(i.name)}</div>
+            </div>`).join("") + "</div>";
     }
 
     function updateStatus(orderId, status) {
