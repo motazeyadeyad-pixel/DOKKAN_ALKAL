@@ -367,6 +367,7 @@ function addToCart(productId) {
                 id: product.id,
                 name: product.name,
                 price: product.price,
+                image: product.image || "",
                 quantity: selectedQuantity
             });
         }
@@ -387,26 +388,32 @@ function updateCart() {
     if (!cartItems) return;
 
     if (cart.length === 0) {
-        cartItems.innerHTML = "السلة فارغة";
+        cartItems.innerHTML = "<p class='cart-empty-msg'>🛒 السلة فارغة</p>";
     } else {
         cartItems.innerHTML = "";
         cart.forEach(function (product, index) {
             let itemTotal = product.price * product.quantity;
             subtotal += itemTotal;
 
+            const imgSrc = product.image && product.image.trim() !== ""
+                ? optimizeImage(product.image.trim(), 100)
+                : PLACEHOLDER_IMG;
+
             let item = document.createElement("div");
-            item.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #f9f9f9; padding: 8px; border-radius: 5px;";
+            item.className = "cart-item-card";
 
             item.innerHTML = `
-                <div style="flex:1;">
-                    <strong>${escapeHTML(product.name)}</strong><br>
-                    <small>${product.price} × ${product.quantity} = ${itemTotal.toFixed(2)} دينار</small>
-                </div>
-                <div style="display:flex; align-items:center; gap:5px;">
-                    <button onclick="changeCartItemQty(${index}, -1)">-</button>
-                    <span>${product.quantity}</span>
-                    <button onclick="changeCartItemQty(${index}, 1)">+</button>
-                    <button onclick="removeFromCart(${index})" style="color:red; border:none; background:none;">❌</button>
+                <button class="cart-item-remove" onclick="removeFromCart(${index})" aria-label="حذف">×</button>
+                <img src="${imgSrc}" class="cart-item-img" alt=""
+                     onerror="this.onerror=null; this.src='${PLACEHOLDER_IMG}'">
+                <div class="cart-item-info">
+                    <div class="cart-item-name">${escapeHTML(product.name)}</div>
+                    <div class="cart-item-price">${product.price.toFixed(2)} × ${product.quantity} = <b>${itemTotal.toFixed(2)} د</b></div>
+                    <div class="cart-item-qty">
+                        <button onclick="changeCartItemQty(${index}, -1)">−</button>
+                        <span>${product.quantity}</span>
+                        <button onclick="changeCartItemQty(${index}, 1)">+</button>
+                    </div>
                 </div>
             `;
             cartItems.appendChild(item);
@@ -833,9 +840,9 @@ function getOrderData() {
 
     let itemsList = "";
     let subtotal = 0;
-    cart.forEach(item => {
+    cart.forEach((item, i) => {
         let itemTotal = item.price * item.quantity;
-        itemsList += `- ${item.name} x${item.quantity} (${itemTotal.toFixed(2)} دينار)\n`;
+        itemsList += `${i + 1}. ${item.name} × ${item.quantity} — ${itemTotal.toFixed(2)} د\n`;
         subtotal += itemTotal;
     });
 
@@ -848,6 +855,24 @@ function getOrderData() {
 }
 
 // يحفظ الطلب بقاعدة البيانات مع أول حالة تتبع، ويربطه بحساب الزبون إذا مسجل دخول
+// رسالة طلب منسّقة بشكل أوضح، تُستخدم لتلغرام والواتساب معاً
+function buildOrderMessage(data, orderId) {
+    return `🛒 *طلب جديد — دكان الخال*
+━━━━━━━━━━━━━
+👤 ${data.name}
+📞 ${data.phone}
+🚚 ${data.deliveryType}
+📍 ${data.address}
+━━━━━━━━━━━━━
+📦 *المنتجات:*
+${data.itemsList}━━━━━━━━━━━━━
+💵 المجموع الفرعي: ${data.subtotal.toFixed(2)} د
+🚴 التوصيل: ${data.deliveryFee.toFixed(2)} د
+💰 *الإجمالي: ${data.total.toFixed(2)} دينار*
+━━━━━━━━━━━━━
+🔖 رقم الطلب: ${orderId}`;
+}
+
 function saveOrderToFirebase(data) {
     const orderRef = db.ref("orders").push();
     const orderId = orderRef.key;
@@ -879,7 +904,7 @@ function orderViaTelegram() {
     if (!data) return;
 
     saveOrderToFirebase(data).then((orderId) => {
-        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
+        let message = buildOrderMessage(data, orderId);
 
         return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: "POST",
@@ -903,7 +928,7 @@ function orderViaWhatsApp() {
     if (!data) return;
 
     saveOrderToFirebase(data).then((orderId) => {
-        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
+        let message = buildOrderMessage(data, orderId);
         let whatsappUrl = `https://wa.me/${MY_PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
 
         alert("تم إرسال الطلب! رقم طلبك: " + orderId);
@@ -1063,7 +1088,7 @@ function reorderOrder(orderId) {
             if (existing) {
                 existing.quantity += item.quantity;
             } else {
-                cart.push({ id: item.id, name: item.name, price: item.price, quantity: item.quantity });
+                cart.push({ id: item.id, name: item.name, price: item.price, image: stillExists.image || "", quantity: item.quantity });
             }
         });
 
