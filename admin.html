@@ -36,6 +36,7 @@
     .heavy-badge { font-size: 11px; color: #b45309; font-weight: bold; }
     .img-status { font-size: 11px; color: #16a34a; font-weight: bold; }
     .btn-bulk { background: #7c3aed; color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 14px; cursor: pointer; margin-bottom: 8px; }
+    .btn-export { background: #0284c7; color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 14px; cursor: pointer; margin-bottom: 8px; }
     .btn-bulk:disabled { opacity: 0.6; cursor: not-allowed; }
     .bulk-hint { font-size: 12px; color: #777; margin-bottom: 8px; }
     #bulk-text { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; font-family: Arial, sans-serif; resize: vertical; }
@@ -97,10 +98,45 @@
     <div id="bulk-add-result" style="font-size:13px; margin-top:8px; color:#555;"></div>
 </div>
 
+
+<div class="admin-card">
+    <h2>🤖 معلومات الدكان (لمساعد الزباين)</h2>
+    <p class="bulk-hint">هاي المعلومات اللي البوت بالموقع بيرد فيها على أسئلة الزباين.</p>
+
+    <div class="form-group">
+        <label>أوقات الدوام</label>
+        <input type="text" id="info-hours" placeholder="مثال: يومياً من 8 الصبح لـ 11 بالليل">
+    </div>
+    <div class="form-group">
+        <label>أيام أو أوقات السكر (اختياري)</label>
+        <input type="text" id="info-closed" placeholder="مثال: مسكر يوم الجمعة الصبح">
+    </div>
+    <div class="form-group">
+        <label>العنوان / الموقع</label>
+        <input type="text" id="info-address" placeholder="مثال: عمّان - حي النزهة - قرب دوار كذا">
+    </div>
+    <div class="form-group">
+        <label>رقم التواصل</label>
+        <input type="text" id="info-phone" placeholder="07XXXXXXXX">
+    </div>
+    <div class="form-group">
+        <label>ملاحظات التوصيل</label>
+        <input type="text" id="info-delivery" placeholder="مثال: التوصيل خلال ساعة، الحد الأدنى 0.5 دينار">
+    </div>
+    <div class="form-group">
+        <label>أي ملاحظة إضافية بتحب البوت يعرفها</label>
+        <input type="text" id="info-extra" placeholder="مثال: فيه عروض كل خميس">
+    </div>
+
+    <button class="btn-add" onclick="saveStoreInfo()">حفظ المعلومات</button>
+    <div id="store-info-status" style="font-size:13px; margin-top:8px; color:#16a34a;"></div>
+</div>
+
 <div class="admin-card">
     <h2>📦 المنتجات الحالية</h2>
     <div class="search-box">
         <button type="button" id="bulk-fix-btn" class="btn-bulk" onclick="fixAllHeavyImages()">🔄 صلّح كل الصور الثقيلة تلقائياً</button>
+        <button type="button" class="btn-export" onclick="exportProductsToExcel()">📤 تصدير كل المنتجات لملف Excel</button>
         <div id="bulk-progress" style="display:none; font-size:13px; text-align:center; margin-top:6px; color:#555;"></div>
         <input type="text" id="admin-search" placeholder="🔍 دور على منتج..." oninput="renderProductsList()">
 
@@ -110,6 +146,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyCijhMKaJTyfL8p76-31GbfzCpLF2bui1A",
@@ -394,6 +431,51 @@
         if (confirm("متأكد من الحذف نهائياً؟")) {
             db.ref(`products/${id}`).remove();
         }
+    }
+
+    // معلومات الدكان لمساعد الزباين (البوت) بالموقع الرئيسي
+    db.ref("storeInfo").once("value").then(snap => {
+        const info = snap.val() || {};
+        document.getElementById("info-hours").value = info.hours || "";
+        document.getElementById("info-closed").value = info.closed || "";
+        document.getElementById("info-address").value = info.address || "";
+        document.getElementById("info-phone").value = info.phone || "";
+        document.getElementById("info-delivery").value = info.delivery || "";
+        document.getElementById("info-extra").value = info.extra || "";
+    });
+
+    function saveStoreInfo() {
+        const info = {
+            hours: document.getElementById("info-hours").value.trim(),
+            closed: document.getElementById("info-closed").value.trim(),
+            address: document.getElementById("info-address").value.trim(),
+            phone: document.getElementById("info-phone").value.trim(),
+            delivery: document.getElementById("info-delivery").value.trim(),
+            extra: document.getElementById("info-extra").value.trim()
+        };
+        db.ref("storeInfo").set(info).then(() => {
+            document.getElementById("store-info-status").textContent = "✅ انحفظت المعلومات";
+            setTimeout(() => document.getElementById("store-info-status").textContent = "", 2500);
+        }).catch(err => alert("خطأ: " + err.message));
+    }
+
+    // يصدّر كل المنتجات الحالية (الاسم، السعر، رابط الصورة، القسم) لملف Excel جاهز
+    function exportProductsToExcel() {
+        if (!allProducts.length) {
+            alert("لا يوجد منتجات حالياً.");
+            return;
+        }
+        const rows = allProducts.map(p => ({
+            "اسم المنتج": p.name || "",
+            "السعر": p.price || 0,
+            "رابط الصورة": (p.image && !p.image.startsWith("data:")) ? p.image : "",
+            "القسم": p.category || "",
+            "الحالة": p.available !== false ? "متوفر" : "غير متوفر"
+        }));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "المنتجات");
+        XLSX.writeFile(wb, "منتجات_دكان_الخال.xlsx");
     }
 
     function escapeHTML(str) {
