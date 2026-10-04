@@ -1,7 +1,7 @@
 // Service Worker - دكان الخال
 // يخزّن ملفات الواجهة فقط. بيانات Firebase والصور والطلبات دايماً من النت.
-const CACHE_NAME = "dukkan-shell-v1";
-const SHELL = ["./", "./index.html", "./style.css", "./script.js", "./manifest.json",
+const CACHE_NAME = "dukkan-shell-v3";
+const SHELL = ["./", "./index.html", "./style.css", "./script.js", "./product3d.js", "./manifest.json",
                "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {

@@ -242,31 +242,88 @@ function getFilteredProducts() {
     return filtered;
 }
 
+// صورة مصغّرة خفيفة لعرض 360° (تحافظ على الصيغة الأصلية عشان القص)
+function thumb3d(url, size) {
+    url = String(url || "").trim();
+    size = size || 420;
+    if (!url.includes("res.cloudinary.com") || !url.includes("/upload/") || url.includes("/upload/w_")) return url;
+    return url.replace("/upload/", `/upload/w_${size},c_limit,q_auto/`);
+}
+
+// ==========================================
+// بطاقات المنتجات: كل منتج بيلف 360° لحاله (بيتركّب لما يقرب من الشاشة بس)
+// ==========================================
+let cardStages = [];
+let cardObserver = null;
+
+function getCardObserver() {
+    if (!cardObserver) {
+        cardObserver = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (!e.isIntersecting) return;
+                cardObserver.unobserve(e.target);
+                mountCard(e.target);
+            });
+        }, { rootMargin: "250px" });
+    }
+    return cardObserver;
+}
+
+function destroyCardStages() {
+    if (cardObserver) cardObserver.disconnect();
+    cardStages.forEach(S => { try { S.destroy(); } catch (e) {} });
+    cardStages = [];
+}
+
+function mountCard(host) {
+    if (typeof Product3D === "undefined") return;
+    const id = host.dataset.pid;
+    const product = allProductsList.find(p => p.id == id);
+    if (!product || !product.image) return;
+
+    const S = Product3D.mount(host, {
+        img: thumb3d(product.image, 420),
+        name: product.name,
+        flavor: product.flavor,
+        category: product.category,
+        cloudinary: false,   // قص مجاني فقط بالبطاقات (ما بنصرف رصيد Cloudinary)
+        count: 3, bubbles: 0, layers: 5, maxPx: 360, zoom: 1.1, orbit: 0.55
+    });
+    cardStages.push(S);
+
+    // ضغطة خفيفة (بدون سحب) = فتح النافذة الكبيرة
+    let sx = 0, moved = false;
+    host.addEventListener("pointerdown", e => { sx = e.clientX; moved = false; });
+    host.addEventListener("pointermove", e => { if (Math.abs(e.clientX - sx) > 6) moved = true; });
+    host.addEventListener("click", () => { if (!moved) open3D(id); });
+}
+
 function createProductCard(product) {
     const card = document.createElement("div");
     card.className = "product-card";
     card.id = `product-card-${product.id}`;
 
-    const imgSrc = product.image && product.image.trim() !== ""
-        ? optimizeImage(product.image.trim())
-        : PLACEHOLDER_IMG;
-
+    const hasImg = !!(product.image && product.image.trim());
+    const info = (typeof Product3D !== "undefined")
+        ? Product3D.detect(product.flavor || product.name, product.category)
+        : { color: "#ffd400", items: ["✨"] };
     const isFav = !!userFavorites[product.id];
 
     card.innerHTML = `
-        <div style="position:relative; width:100%; height:160px; overflow:hidden; border-radius:8px; margin-bottom:10px; background-color:#f0f0f0;">
-            <img src="${imgSrc}" alt="" loading="lazy" decoding="async"
-                 onerror="this.onerror=null; this.src='${PLACEHOLDER_IMG}'"
-                 style="width:100%; height:100%; object-fit:cover; display:block;">
-            <button type="button" class="fav-btn" onclick="toggleFavorite('${product.id}', this)"
-                style="position:absolute; top:6px; left:6px; width:32px; height:32px; border:none; border-radius:50%;
-                       background:rgba(255,255,255,0.9); font-size:16px; cursor:pointer;">${isFav ? '❤️' : '🤍'}</button>
+        <div class="card-stage" style="--c:${info.color}">
+            <div class="card-host" data-pid="${escapeHTML(product.id)}">
+                ${hasImg
+                    ? `<img class="card-fallback" src="${escapeHTML(optimizeImage(product.image.trim()))}" alt="" loading="lazy" decoding="async">`
+                    : `<div class="card-emoji">${info.items[0]}</div>`}
+            </div>
+            ${hasImg ? `<button type="button" class="p3d-badge" onclick="open3D('${product.id}')">🔍 تكبير</button>` : ""}
+            <button type="button" class="fav-btn" onclick="toggleFavorite('${product.id}', this)">${isFav ? '❤️' : '🤍'}</button>
         </div>
         <h3>${escapeHTML(product.name)}</h3>
         <div class="price">${product.price} دينار</div>
         <div class="available">✓ متوفر</div>
 
-        <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0;">
+        <div class="qty-row" style="display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0;">
             <button type="button" onclick="changeProductQty('${product.id}', -1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">-</button>
             <input type="number" id="qty-${product.id}" value="1" min="1" readonly style="width:45px; text-align:center; border:1px solid #ccc; border-radius:5px; padding:4px; font-weight:bold;">
             <button type="button" onclick="changeProductQty('${product.id}', 1)" style="width:30px; height:30px; background:#ddd; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">+</button>
@@ -275,7 +332,95 @@ function createProductCard(product) {
         <button class="add-button" onclick="addToCart('${product.id}')">🛒 أضف إلى السلة</button>
     `;
 
+    if (hasImg && "IntersectionObserver" in window) {
+        getCardObserver().observe(card.querySelector(".card-host"));
+    }
     return card;
+}
+
+// ==========================================
+// واجهة الموقع: منتج كبير بيلف 360° وبيتبدّل لحاله
+// ==========================================
+let heroList = [], heroIdx = 0, heroS = null, heroTimer = null, heroKey = "";
+
+function setupHero() {
+    const stage = document.getElementById("hero-3d");
+    if (!stage || typeof Product3D === "undefined") return;
+
+    const withImg = allProductsList.filter(p => p.available !== false && p.image && p.image.trim());
+    const key = withImg.length + "|" + (withImg[0] ? withImg[0].id : "");
+    if (!withImg.length || key === heroKey) return;
+    heroKey = key;
+
+    heroList = withImg.slice().sort(() => Math.random() - 0.5).slice(0, 6);
+    document.getElementById("hero-dots").innerHTML = heroList
+        .map((_, i) => `<button type="button" aria-label="منتج ${i + 1}" onclick="showHero(${i}, true)"></button>`).join("");
+
+    if (!stage.dataset.bound) {
+        stage.dataset.bound = "1";
+        stage.addEventListener("pointerdown", restartHeroTimer);
+    }
+    showHero(0);
+    restartHeroTimer();
+}
+
+function showHero(i, manual) {
+    const stage = document.getElementById("hero-3d");
+    const p = heroList[i];
+    if (!stage || !p) return;
+    heroIdx = i;
+
+    if (heroS) { try { heroS.destroy(); } catch (e) {} heroS = null; }
+    stage.innerHTML = "";
+    const slot = document.createElement("div");
+    slot.className = "hero-slot";
+    stage.appendChild(slot);
+
+    heroS = Product3D.mount(slot, {
+        img: thumb3d(p.image, 700),
+        name: p.name, flavor: p.flavor, category: p.category,
+        cloudinary: false, maxPx: 640
+    });
+
+    const info = Product3D.detect(p.flavor || p.name, p.category);
+    const hero = document.getElementById("hero");
+    if (hero) hero.style.setProperty("--hc", info.color);
+
+    document.getElementById("hero-name").textContent = p.name;
+    document.getElementById("hero-price").textContent = `${p.price} دينار`;
+    document.getElementById("hero-add").onclick = () => addToCart(p.id, 1);
+    document.querySelectorAll("#hero-dots button").forEach((b, j) => b.classList.toggle("on", j === i));
+    if (manual) restartHeroTimer();
+}
+
+function restartHeroTimer() {
+    clearInterval(heroTimer);
+    heroTimer = setInterval(() => {
+        if (document.hidden || heroList.length < 2) return;
+        showHero((heroIdx + 1) % heroList.length);
+    }, 7000);
+}
+
+// ==========================================
+// عرض المنتج 360° (ملف product3d.js)
+// "auto" = يجرّب القص المجاني لخلفية الصورة أولاً، وإذا الخلفية معقدة يستعمل Cloudinary (بينحسب من رصيد التحويلات)
+// false  = القص المجاني فقط (ما بنستعمل Cloudinary أبداً)
+// ==========================================
+const P3D_CLOUDINARY = "auto";
+
+function open3D(productId) {
+    const product = allProductsList.find(p => p.id == productId);
+    if (!product || !product.image || typeof Product3D === "undefined") return;
+    Product3D.modal({
+        img: product.image.trim(),
+        name: product.name,
+        flavor: product.flavor,        // اختياري: حقل "flavor" بالمنتج بـ Firebase (مثلاً "ليمون") يغلب على الاسم
+        category: product.category,
+        sub: `${product.price} دينار`,
+        cloudinary: P3D_CLOUDINARY,
+        accent: "#ffd400",
+        onAdd: () => addToCart(productId)
+    });
 }
 
 // علامة نهاية القائمة: لما الزبون يقرب منها نحمّل دفعة جديدة
@@ -328,6 +473,8 @@ function displayProducts() {
     if (!container) return;
 
     if (loadMoreObserver) loadMoreObserver.disconnect();
+    destroyCardStages();
+    setupHero();
 
     const filtered = getFilteredProducts();
 
@@ -353,10 +500,10 @@ function continueAfterFullLoad() {
 // ==========================================
 // السلة
 // ==========================================
-function addToCart(productId) {
+function addToCart(productId, qtyOverride) {
     let product = allProductsList.find(item => item.id == productId);
     const qtyInput = document.getElementById(`qty-${productId}`);
-    let selectedQuantity = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
+    let selectedQuantity = qtyOverride || (qtyInput ? parseInt(qtyInput.value) || 1 : 1);
 
     if (product) {
         let existingItem = cart.find(item => item.id == productId);

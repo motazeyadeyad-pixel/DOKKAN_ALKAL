@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دكان الخال</title>
     <meta name="description" content="دكان الخال - منتجات متنوعة، أسعار مناسبة، وخدمة توصيل سريعة">
-    <meta name="theme-color" content="#006b3c">
+    <meta name="theme-color" content="#0b0b0c">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -13,13 +13,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="دكان الخال">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Lalezar&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script>
         /* تطبيق إعدادات الزبون المحفوظة مبكراً (بدون وميض) */
         try {
             var _s = JSON.parse(localStorage.getItem("dukkan_settings") || "{}");
             var _r = document.documentElement;
-            if (_s.dark) _r.classList.add("dark");
+            if (_s.dark !== false) _r.classList.add("dark");
             if (_s.noMotion) _r.classList.add("no-motion");
             if (_s.large) _r.classList.add("text-large");
         } catch (e) {}
@@ -64,15 +67,34 @@
     </header>
 
     <!-- واجهة الموقع -->
-    <section class="hero">
+    <section class="hero" id="hero">
         <div class="hero-text">
+            <span class="hero-kicker">DUKKAN AL-KHAL</span>
             <p>أهلاً وسهلاً بكم في</p>
-            <h1>دكان الخال</h1>
+            <h1>دكان <span class="grad">الخال</span></h1>
             <h3>منتجات متنوعة - أسعار مناسبة - خدمة سريعة</h3>
             <div class="hero-actions">
                 <button onclick="scrollToProducts()">تصفح المنتجات</button>
             </div>
         </div>
+
+        <div class="hero-stage-wrap">
+            <div id="hero-3d" class="hero-3d"><div class="hero-ph">🛒</div></div>
+            <div class="hero-pick">
+                <div id="hero-name" class="hero-pick-name"></div>
+                <div id="hero-price" class="hero-pick-price"></div>
+                <button type="button" id="hero-add" class="hero-add">🛒 أضف إلى السلة</button>
+            </div>
+            <div class="hero-dots" id="hero-dots"></div>
+        </div>
+    </section>
+
+    <!-- شريط أصفر -->
+    <section class="band">
+        <span>🛒 منتجات متنوعة</span>
+        <span>💸 أسعار مناسبة</span>
+        <span>⚡ خدمة سريعة</span>
+        <span>🛵 توصيل للباب</span>
     </section>
 
     <!-- الأقسام -->
@@ -389,6 +411,9 @@
     <!-- مكتبة Cloudinary لرفع الصور -->
     <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
 
+    <!-- عرض المنتج 360° مع عناصر النكهة -->
+    <script src="product3d.js"></script>
+
     <!-- ملف السكربت الخاص بالموقع -->
     <script src="script.js"></script>
 
@@ -454,7 +479,7 @@
         (function () {
             var KEY = "dukkan_settings";
             var root = document.documentElement;
-            var state = { dark: false, noMotion: false, large: false };
+            var state = { dark: true, noMotion: false, large: false };
 
             try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
 
