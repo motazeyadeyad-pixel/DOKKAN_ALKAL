@@ -287,7 +287,7 @@ function mountCard(host) {
         flavor: product.flavor,
         category: product.category,
         cloudinary: false,   // قص مجاني فقط بالبطاقات (ما بنصرف رصيد Cloudinary)
-        count: 3, bubbles: 0, layers: 5, maxPx: 360, zoom: 1.1, orbit: 0.55
+        count: 3, bubbles: 0, layers: 8, maxPx: 360, zoom: 1.1, orbit: 0.55, sheen: false, reflect: false
     });
     cardStages.push(S);
 
@@ -379,7 +379,8 @@ function showHero(i, manual) {
     heroS = Product3D.mount(slot, {
         img: thumb3d(p.image, 700),
         name: p.name, flavor: p.flavor, category: p.category,
-        cloudinary: false, maxPx: 640
+        cloudinary: false, maxPx: 640,
+        word: true, thick: .16, layers: 22, lift: 20
     });
 
     const info = Product3D.detect(p.flavor || p.name, p.category);
@@ -418,6 +419,7 @@ function open3D(productId) {
         category: product.category,
         sub: `${product.price} دينار`,
         cloudinary: P3D_CLOUDINARY,
+        word: true, thick: .15, layers: 20, lift: 14,
         accent: "#ffd400",
         onAdd: () => addToCart(productId)
     });

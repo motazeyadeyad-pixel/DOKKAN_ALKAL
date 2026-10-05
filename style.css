@@ -1863,3 +1863,7 @@ body { font-family: 'Cairo', Arial, sans-serif; }
     .card-emoji { font-size: 48px; }
     .band { padding: 12px 10px; gap: 6px 14px; font-size: 16px; }
 }
+
+/* الاسم صار خلف المنتج بالواجهة */
+.hero-pick-name { display: none; }
+.hero-pick { margin-top: 0; }

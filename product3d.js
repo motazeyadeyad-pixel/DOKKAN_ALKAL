@@ -131,6 +131,15 @@
   var CSS =
     '.p3d{--c:#ffd400;position:relative;width:100%;height:100%;min-height:340px;perspective:1100px;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:pan-y}' +
     '.p3d:active{cursor:grabbing}' +
+    '.p3d-word{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:\'Lalezar\',\'Cairo\',Impact,sans-serif;line-height:.92;text-align:center;pointer-events:none;white-space:nowrap;animation:p3dw .85s cubic-bezier(.2,1.3,.4,1) both}' +
+    '.p3d-word span{display:block;padding:.1em .06em .14em;line-height:1;margin:-.06em 0;background:linear-gradient(180deg,color-mix(in srgb,var(--wc,#ffd400) 40%,#fff) 0%,var(--wc,#ffd400) 50%,color-mix(in srgb,var(--wc,#ffd400) 62%,#000) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 6px 14px rgba(0,0,0,.4))}' +
+    '@keyframes p3dw{from{opacity:0;transform:scale(.55) translateY(40px);filter:blur(10px)}to{opacity:1;transform:none;filter:blur(0)}}' +
+    '.p3d.has-word .p3d-glow{opacity:.28}' +
+    '.p3d.has-word .p3d-world{animation:p3dpop .7s .3s both}' +
+    '@keyframes p3dpop{from{opacity:0;translate:0 60px}to{opacity:1;translate:0 0}}' +
+    '.p3d-prod .sh{position:absolute;inset:0;pointer-events:none;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;background:linear-gradient(105deg,transparent 28%,rgba(255,255,255,.9) 50%,transparent 72%);background-size:280% 100%;opacity:.5;backface-visibility:hidden;-webkit-backface-visibility:hidden}' +
+    '.p3d-prod .rf{pointer-events:none;opacity:.38;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.5),transparent 34%);mask-image:linear-gradient(to top,rgba(0,0,0,.5),transparent 34%)}' +
+    '.p3d.has-ref .p3d-sh{opacity:.3}' +
     '.p3d-glow{position:absolute;left:50%;top:50%;width:84%;aspect-ratio:1;translate:-50% -50%;border-radius:50%;background:radial-gradient(circle at 50% 45%,var(--c) 0,var(--c) 38%,transparent 71%);opacity:.9}' +
     '.p3d-sh{position:absolute;left:50%;bottom:4%;width:46%;height:5%;translate:-50% 0;border-radius:50%;background:#000;filter:blur(14px);opacity:.55}' +
     '.p3d-world{position:absolute;inset:0;transform-style:preserve-3d}' +
@@ -167,8 +176,12 @@
       var tt = S.calm ? 0 : t;
       if (!S.drag) { S.w += ((S.calm ? 0 : 45) - S.w) * Math.min(1, dt * 1.2); S.th += S.w * dt; }
       var k = Math.min(1, S.el.clientWidth / (540 * S.orbit), S.el.clientHeight / 480) * S.zoom;
-      S.world.style.transform = 'scale(' + k + ') rotateX(-8deg)';
-      S.pr.style.transform = 'rotateY(' + S.th + 'deg)';
+      S.world.style.transform = 'translateY(' + (-S.lift) + 'px) scale(' + k + ') rotateX(-8deg)';
+      var bob = S.calm ? 0 : Math.sin(tt * 1.3) * 7, sway = S.calm ? 0 : Math.sin(tt * .9) * 1.4, rad = S.th * Math.PI / 180;
+      S.pr.style.transform = 'translateY(' + bob.toFixed(1) + 'px) rotateZ(' + sway.toFixed(2) + 'deg) rotateY(' + S.th + 'deg)';
+      if (S.shF) S.shF.style.backgroundPosition = (50 + 50 * Math.sin(rad)).toFixed(1) + '% 0';
+      if (S.shB) S.shB.style.backgroundPosition = (50 - 50 * Math.sin(rad)).toFixed(1) + '% 0';
+      if (S.sh) S.sh.style.transform = 'scale(' + (.55 + .45 * Math.abs(Math.cos(rad))).toFixed(3) + ',' + (1 - bob / 60).toFixed(3) + ')';
       S.its.forEach(function (it) {
         var f = it.a + tt * it.sp, x = Math.cos(f) * it.R, z = Math.sin(f) * it.R * .85, y = it.y + Math.sin(tt * 1.4 + it.bob) * 14;
         it.el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,' + z.toFixed(1) + 'px) translate(-50%,-50%) rotate(' + ((tt * it.spin) % 360).toFixed(0) + 'deg)';
@@ -183,9 +196,22 @@
     o = o || {}; css();
     var info = detect(o.flavor || o.name || '', o.category), items = (o.items && o.items.length) ? o.items : info.items;
     el.classList.add('p3d'); el.style.setProperty('--c', o.color || info.color);
-    el.innerHTML = '<div class="p3d-glow"></div><div class="p3d-sh"></div><div class="p3d-world"><div class="p3d-prod"></div></div><div class="p3d-load"></div>';
-    var world = el.querySelector('.p3d-world'), S = { el: el, world: world, pr: el.querySelector('.p3d-prod'), th: 0, w: 0, calm: calmMode(), drag: 0, vel: 0, lx: 0, on: true, ready: false, its: [], zoom: o.zoom || 1, orbit: o.orbit || 1 };
+    el.innerHTML = '<div class="p3d-glow"></div>' + (o.word ? '<div class="p3d-word"></div>' : '') + '<div class="p3d-sh"></div><div class="p3d-world"><div class="p3d-prod"></div></div><div class="p3d-load"></div>';
+    var world = el.querySelector('.p3d-world'), S = { el: el, world: world, pr: el.querySelector('.p3d-prod'), th: 0, w: 0, calm: calmMode(), drag: 0, vel: 0, lx: 0, on: true, ready: false, its: [], zoom: o.zoom || 1, orbit: o.orbit || 1, lift: o.lift || 0, sh: el.querySelector('.p3d-sh') };
 
+    var wEl = el.querySelector('.p3d-word');
+    if (wEl) {
+      var words = String(o.word === true ? (o.name || '') : o.word).trim().split(/\s+/).filter(Boolean).slice(0, 4);
+      var half = Math.ceil(words.length / 2);
+      var lines = words.length > 2 ? [words.slice(0, half).join(' '), words.slice(half).join(' ')] : words;
+      var cw = el.clientWidth || 500, ch = el.clientHeight || 420, maxc = 2;
+      lines.forEach(function (l) { maxc = Math.max(maxc, l.length); });
+      var fs = Math.min(cw * .98 / (maxc * .48), ch * .86 / lines.length / .92, 240);
+      wEl.style.fontSize = fs.toFixed(0) + 'px';
+      wEl.style.setProperty('--wc', o.wordColor || o.color || info.color);
+      wEl.innerHTML = lines.map(function (l) { return '<span>' + l.replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }) + '</span>'; }).join('');
+      el.classList.add('has-word');
+    }
     var n = o.count != null ? o.count : 8, nb = o.bubbles != null ? o.bubbles : 6, i;
     for (i = 0; i < n; i++) {
       var e = document.createElement('span'); e.className = 'p3d-it'; e.textContent = items[i % items.length]; e.style.fontSize = (36 + (i % 3) * 14) + 'px';
@@ -208,13 +234,26 @@
       if (S.dead) return;
       var ld = el.querySelector('.p3d-load'); if (ld) ld.remove();
       if (!r) { el.insertAdjacentHTML('beforeend', '<div style="position:absolute;inset:0;display:grid;place-items:center;color:#fff9">تعذّر تحميل الصورة</div>'); return; }
-      var a = r.w / r.h, H = Math.min(380, 300 / a), W = H * a, K = o.layers || 10, th = Math.max(8, Math.min(18, W * .08)), h = '';
-      for (var j = 0; j < K; j++) {
-        var z = (j / (K - 1) - .5) * th, cls = j === 0 ? 'b' : j === K - 1 ? 'f' : 'm';
-        h += '<img class="' + cls + '" src="' + r.src + '" alt="" draggable="false" style="transform:translateZ(' + z.toFixed(1) + 'px)' + (cls === 'b' ? ' rotateY(180deg)' : '') + '">';
+      var a = r.w / r.h, H = Math.min(380, 300 / a), W = H * a, K = o.layers || 10, th = Math.max(8, Math.min(o.thick ? 34 : 18, W * (o.thick || .08))), h = '', j, tr, sc;
+      for (j = 0; j < K; j++) {
+        var f = j / (K - 1), z = (f - .5) * th, cls = j === 0 ? 'b' : j === K - 1 ? 'f' : 'm';
+        sc = (.975 + .025 * Math.sin(Math.PI * f)).toFixed(4);
+        tr = 'translateZ(' + z.toFixed(1) + 'px)' + (cls === 'b' ? ' rotateY(180deg)' : '') + ' scale(' + sc + ')';
+        h += '<img class="' + cls + '" src="' + r.src + '" alt="" draggable="false" style="transform:' + tr + (cls === 'm' ? ';filter:brightness(' + (.34 + .42 * f).toFixed(2) + ')' : '') + '">';
+      }
+      if (o.reflect !== false && r.cut) {
+        var rs = 'translateY(' + (H * .99).toFixed(0) + 'px) scaleY(-1)';
+        h += '<img class="rf f" src="' + r.src + '" alt="" draggable="false" style="transform:translateZ(' + (th / 2).toFixed(1) + 'px) ' + rs + '">' +
+             '<img class="rf b" src="' + r.src + '" alt="" draggable="false" style="transform:translateZ(' + (-th / 2).toFixed(1) + 'px) rotateY(180deg) ' + rs + '">';
+        el.classList.add('has-ref');
+      }
+      if (o.sheen !== false && r.cut) {
+        var mk = 'url(&quot;' + r.src + '&quot;)';
+        h += '<i class="sh f" style="transform:translateZ(' + (th / 2 + .8).toFixed(1) + 'px) scale(.975);-webkit-mask-image:' + mk + ';mask-image:' + mk + '"></i>' +
+             '<i class="sh b" style="transform:translateZ(' + (-th / 2 - .8).toFixed(1) + 'px) rotateY(180deg) scale(.975);-webkit-mask-image:' + mk + ';mask-image:' + mk + '"></i>';
       }
       S.pr.style.cssText = 'width:' + W + 'px;height:' + H + 'px;margin:' + (-H / 2) + 'px 0 0 ' + (-W / 2) + 'px';
-      S.pr.innerHTML = h; S.ready = true; S.w = S.calm ? 0 : 45;
+      S.pr.innerHTML = h; S.shF = S.pr.querySelector('.sh.f'); S.shB = S.pr.querySelector('.sh.b'); S.ready = true; S.w = S.calm ? 0 : 45;
     });
 
     el.addEventListener('pointerdown', function (ev) { S.drag = 1; S.lx = ev.clientX; S.vel = 0; try { el.setPointerCapture(ev.pointerId); } catch (_) { } });
