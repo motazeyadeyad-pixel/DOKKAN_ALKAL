@@ -28,6 +28,9 @@
     .store-btns button { flex:1; padding:12px 6px; font-size:14px; border-radius:10px; border:2px solid #ccc; background:#f0f0f0; cursor:pointer; font-weight:bold; }
     .store-btns button.active { background:#b42318; color:#fff; border-color:#b42318; }
     .store-hint { font-size:12px; color:#888; margin-top:8px; }
+    .pay-row { display:flex; align-items:center; justify-content:space-between; gap:8px; background:#fff7e6; color:#8a5a00; border-radius:10px; padding:8px 10px; margin-bottom:10px; font-size:13px; font-weight:bold; }
+    .pay-row.paid { background:#e8f5ee; color:#006b3c; }
+    .pay-row button { border:none; border-radius:8px; padding:7px 10px; font-size:12px; font-weight:bold; cursor:pointer; background:#006b3c; color:#fff; white-space:nowrap; }
     .photo-strip { display:flex; gap:8px; overflow-x:auto; padding:4px 0 8px; margin-bottom:6px; -webkit-overflow-scrolling:touch; }
     .photo-item { flex:0 0 auto; width:62px; text-align:center; position:relative; }
     .photo-item img { width:56px; height:56px; object-fit:cover; border-radius:8px; background:#eee; border:1px solid #e3e3e3; display:block; margin:0 auto; }
@@ -134,10 +137,27 @@
                         ${photoStrip(order.items)}
                         <div class="items">${escapeHTML(itemsText)}</div>
                         <div class="meta">📞 ${escapeHTML(order.phone || "")} — ${date}</div>
+                        ${paymentLine(order)}
                         <div class="status-buttons">${buttons}</div>
                     </div>`;
             }).join("");
         });
+    }
+
+    // ===== الدفع بكليك: تأكيد استلام المبلغ =====
+    const PAID_TEXT = "تم استلام الدفعة ✅";
+    function paymentLine(order) {
+        if (!order.payment) return "";
+        if (!String(order.payment).includes("كليك")) return `<div class="meta">${escapeHTML(order.payment)}</div>`;
+        const paid = order.paymentStatus === PAID_TEXT;
+        const ref = order.paymentRef ? ` — مرجع: ${escapeHTML(order.paymentRef)}` : "";
+        return `<div class="pay-row ${paid ? "paid" : ""}">
+            <span>📲 كليك${ref} — ${paid ? "✅ تم استلام الدفعة" : "⏳ تأكد من تطبيق البنك"}</span>
+            <button onclick="setPaid('${order.id}', ${paid ? "false" : "true"})">${paid ? "تراجع" : "✅ استلمت المبلغ"}</button>
+        </div>`;
+    }
+    function setPaid(id, paid) {
+        db.ref(`orders/${id}/paymentStatus`).set(paid ? PAID_TEXT : "بانتظار تأكيد الدفع");
     }
 
     function thumbUrl(url) {

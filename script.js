@@ -76,6 +76,7 @@ let userLocationUrl = "";
 const TELEGRAM_BOT_TOKEN = "8832237966:AAFM0maLZu_CPxOKk77kGblwx2FJKwJ5X7U";
 const TELEGRAM_CHAT_ID = "1953861313";
 const MY_PHONE_NUMBER = "962775279117";
+const CLIQ_ALIAS = "KW1984"; // غيّرها لرقم كليك (CliQ) الدكان الحقيقي
 
 // إعدادات السرعة
 const PAGE_SIZE = 45;                        // عدد المنتجات في كل دفعة (وأول ما يفتح الموقع)
@@ -616,6 +617,36 @@ function toggleAddressInput() {
     updateCart();
 }
 
+// إظهار/إخفاء تفاصيل الدفع عبر كليك حسب طريقة الدفع المختارة
+function togglePaymentInput() {
+    const paymentSelect = document.getElementById("payment-method");
+    const cliqGroup = document.getElementById("cliq-group");
+    if (!paymentSelect || !cliqGroup) return;
+    cliqGroup.style.display = paymentSelect.value.includes("كليك") ? "flex" : "none";
+}
+
+// إرجاع حقول الدفع لوضعها الافتراضي (كاش) بعد إرسال الطلب
+function resetPaymentFields() {
+    const paymentSelect = document.getElementById("payment-method");
+    const paymentRefInput = document.getElementById("payment-ref");
+    if (paymentSelect) paymentSelect.value = "💵 دفع عند الاستلام";
+    if (paymentRefInput) paymentRefInput.value = "";
+    togglePaymentInput();
+}
+
+// نسخ رقم/اسم الكليك بضغطة واحدة
+function copyCliqAlias() {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(CLIQ_ALIAS).then(() => {
+            showToast("تم نسخ رقم الكليك ✅");
+        }).catch(() => {
+            showToast("تعذر النسخ، انسخه يدوياً: " + CLIQ_ALIAS);
+        });
+    } else {
+        showToast("انسخ رقم الكليك يدوياً: " + CLIQ_ALIAS);
+    }
+}
+
 function getLocation() {
     const status = document.getElementById("location-status");
     if (!navigator.geolocation) {
@@ -968,6 +999,10 @@ function getOrderData() {
     let deliveryType = document.getElementById("delivery-type").value;
     let addressInput = document.getElementById("customer-address");
     let address = addressInput ? addressInput.value.trim() : "";
+    let paymentSelect = document.getElementById("payment-method");
+    let payment = paymentSelect ? paymentSelect.value : "💵 دفع عند الاستلام";
+    let paymentRefInput = document.getElementById("payment-ref");
+    let paymentRef = paymentRefInput ? paymentRefInput.value.trim() : "";
 
     if (name === "") {
         alert("الرجاء إدخال اسمك.");
@@ -990,7 +1025,7 @@ function getOrderData() {
 
     let deliveryFee = deliveryType.includes("توصيل للمنزل") ? 0.15 : 0;
     return {
-        name, phone, deliveryType, address: fullAddress, itemsList,
+        name, phone, deliveryType, address: fullAddress, itemsList, payment, paymentRef,
         items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
         subtotal, deliveryFee, total: subtotal + deliveryFee
     };
@@ -1011,6 +1046,9 @@ function saveOrderToFirebase(data) {
         subtotal: data.subtotal,
         deliveryFee: data.deliveryFee,
         total: data.total,
+        payment: data.payment,
+        paymentRef: data.paymentRef || "",
+        paymentStatus: data.payment.includes("كليك") ? "بانتظار تأكيد الدفع" : "",
         status: ORDER_STATUSES[0],
         createdAt: Date.now()
     };
@@ -1023,12 +1061,14 @@ function saveOrderToFirebase(data) {
     });
 }
 
-function orderViaTelegram() {
+function orderViaTelegram(paid) {
     let data = getOrderData();
     if (!data) return;
+    if (!paid && data.payment.includes("كليك")) { return openCliqModal(data, () => orderViaTelegram(true)); }
 
     saveOrderToFirebase(data).then((orderId) => {
-        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
+        let paymentLine = `💳 ${data.payment}` + (data.paymentRef ? ` (مرجع: ${data.paymentRef})` : "");
+        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n${paymentLine}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
 
         return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: "POST",
@@ -1037,7 +1077,7 @@ function orderViaTelegram() {
         }).then(res => res.json()).then(res => {
             if (res.ok) {
                 alert("تم إرسال الطلب بنجاح! رقم طلبك: " + orderId);
-                cart = []; userLocationUrl = ""; updateCart(); closeCart();
+                cart = []; userLocationUrl = ""; updateCart(); closeCart(); resetPaymentFields();
                 trackOrder(orderId);
             } else { alert("خطأ بالإرسال."); }
         });
@@ -1047,16 +1087,18 @@ function orderViaTelegram() {
     });
 }
 
-function orderViaWhatsApp() {
+function orderViaWhatsApp(paid) {
     let data = getOrderData();
     if (!data) return;
+    if (!paid && data.payment.includes("كليك")) { return openCliqModal(data, () => orderViaWhatsApp(true)); }
 
     saveOrderToFirebase(data).then((orderId) => {
-        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
+        let paymentLine = `💳 ${data.payment}` + (data.paymentRef ? ` (مرجع: ${data.paymentRef})` : "");
+        let message = `🛒 *طلب جديد*\n👤 ${data.name}\n📞 ${data.phone}\n🚚 ${data.deliveryType}\n📍 ${data.address}\n${paymentLine}\n\n${data.itemsList}\n💰 المجموع: ${data.total.toFixed(2)} دينار\n🔖 رقم الطلب: ${orderId}`;
         let whatsappUrl = `https://wa.me/${MY_PHONE_NUMBER}?text=${encodeURIComponent(message)}`;
 
         alert("تم إرسال الطلب! رقم طلبك: " + orderId);
-        cart = []; userLocationUrl = ""; updateCart(); closeCart();
+        cart = []; userLocationUrl = ""; updateCart(); closeCart(); resetPaymentFields();
         window.open(whatsappUrl, "_blank");
         trackOrder(orderId);
     }).catch(err => {
@@ -1232,4 +1274,68 @@ document.addEventListener("DOMContentLoaded", function () {
     loadStoreRating();
     const searchInput = document.getElementById("search-input");
     if (searchInput) searchInput.addEventListener("input", debounce(displayProducts, 250));
+    const cliqAliasEl = document.getElementById("cliq-alias-value");
+    if (cliqAliasEl) cliqAliasEl.textContent = CLIQ_ALIAS;
 });
+
+
+// ==========================================
+// نافذة الدفع بكليك (داخل الموقع) + QR
+// ==========================================
+const SHOW_CLIQ_QR = true;            // إذا الـ QR ما انمسح من تطبيق بنكك خليها false
+const CLIQ_MERCHANT_NAME = "Dukkan Alkhal";
+const CLIQ_CITY = "Amman";
+let cliqPending = null;
+
+function tlv(id, val) { return id + String(val.length).padStart(2, "0") + val; }
+function crc16(str) {
+    let crc = 0xFFFF;
+    for (let i = 0; i < str.length; i++) {
+        crc ^= str.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+    }
+    return crc.toString(16).toUpperCase().padStart(4, "0");
+}
+function buildCliqPayload(alias, amount) {
+    let p = tlv("00", "01") + tlv("01", "12")
+          + tlv("26", tlv("00", "JO.COM.JOPACC") + tlv("02", alias))
+          + tlv("52", "0000") + tlv("53", "400") + tlv("54", amount.toFixed(3))
+          + tlv("58", "JO") + tlv("59", CLIQ_MERCHANT_NAME) + tlv("60", CLIQ_CITY) + "6304";
+    return p + crc16(p);
+}
+
+function openCliqModal(data, onConfirm) {
+    cliqPending = { data, onConfirm };
+    document.getElementById("cliq-amount").textContent = data.total.toFixed(2) + " د";
+    document.getElementById("cliq-modal-alias").textContent = CLIQ_ALIAS;
+    document.getElementById("cliq-modal-ref").value = "";
+    const wrap = document.getElementById("cliq-qr-wrap");
+    const box = document.getElementById("cliq-qr");
+    box.innerHTML = "";
+    if (SHOW_CLIQ_QR && window.QRCode) {
+        wrap.style.display = "block";
+        try { new QRCode(box, { text: buildCliqPayload(CLIQ_ALIAS, data.total), width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M }); }
+        catch (e) { wrap.style.display = "none"; }
+    } else { wrap.style.display = "none"; }
+    document.getElementById("cliq-modal").style.display = "flex";
+}
+function closeCliqModal() {
+    document.getElementById("cliq-modal").style.display = "none";
+    cliqPending = null;
+}
+function copyCliqAmount() {
+    if (!cliqPending) return;
+    const v = cliqPending.data.total.toFixed(2);
+    (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject())
+        .then(() => showToast("تم نسخ المبلغ ✅"))
+        .catch(() => showToast("المبلغ: " + v));
+}
+function confirmCliqPaid() {
+    if (!cliqPending) return;
+    const ref = document.getElementById("cliq-modal-ref").value.trim();
+    const refInput = document.getElementById("payment-ref");
+    if (refInput) refInput.value = ref;
+    const cb = cliqPending.onConfirm;
+    closeCliqModal();
+    cb();
+}

@@ -194,6 +194,25 @@
                     </button>
                     <p id="location-status" style="font-size: 12px; margin-top: 4px;"></p>
                 </div>
+
+                <!-- طريقة الدفع -->
+                <div class="form-group">
+                    <label for="payment-method">طريقة الدفع</label>
+                    <select id="payment-method" onchange="togglePaymentInput()">
+                        <option value="💵 دفع عند الاستلام">💵 الدفع عند الاستلام (كاش)</option>
+                        <option value="📲 دفع عبر كليك">📲 الدفع عبر كليك (CliQ)</option>
+                    </select>
+                </div>
+
+                <!-- تفاصيل الدفع عبر كليك -->
+                <div class="form-group cliq-box" id="cliq-group" style="display: none;">
+                    <p class="cliq-hint">حوّل المبلغ الكلي عبر تطبيق بنكك إلى رقم الكليك التالي، ثم اكتب رقم العملية (إذا توفر) وبعدها أرسل الطلب:</p>
+                    <div class="cliq-alias-row">
+                        <span id="cliq-alias-value"></span>
+                        <button type="button" class="btn-gps cliq-copy-btn" onclick="copyCliqAlias()">📋 نسخ</button>
+                    </div>
+                    <input type="text" id="payment-ref" placeholder="رقم مرجع التحويل (اختياري)">
+                </div>
             </div>
 
             <div class="order-buttons">
@@ -647,5 +666,30 @@
             }
         }
     </script>
+
+    <!-- نافذة الدفع بكليك -->
+    <div id="cliq-modal" class="cliq-modal" style="display:none;" onclick="if(event.target===this)closeCliqModal()">
+        <div class="cliq-sheet">
+            <h3>📲 الدفع عبر كليك</h3>
+            <div class="cliq-amount-row">
+                <span id="cliq-amount">0.00 د</span>
+                <button type="button" onclick="copyCliqAmount()">📋 نسخ المبلغ</button>
+            </div>
+            <div class="cliq-amount-row">
+                <span id="cliq-modal-alias" dir="ltr"></span>
+                <button type="button" onclick="copyCliqAlias()">📋 نسخ الاسم</button>
+            </div>
+            <div id="cliq-qr-wrap" class="cliq-qr-wrap">
+                <div id="cliq-qr"></div>
+                <p>امسح الرمز من تطبيق بنكك (قسم كليك / QR)</p>
+            </div>
+            <p class="cliq-steps">افتح تطبيق بنكك، حوّل المبلغ، ارجع هون واضغط "دفعت".</p>
+            <input type="text" id="cliq-modal-ref" placeholder="رقم العملية (اختياري)">
+            <button type="button" class="cliq-done" onclick="confirmCliqPaid()">✅ دفعت، أرسل الطلب</button>
+            <button type="button" class="cliq-cancel" onclick="closeCliqModal()">إلغاء</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 </body>
 </html>
